@@ -1,41 +1,17 @@
-# Production profile: activate with SPRING_PROFILES_ACTIVE=prod.
-#
-# Nothing here has a development default on purpose. The datasource credentials and the allowed roots must be
-# provided by the environment (spec section 10: credentials come from environment variables only), and the
-# application refuses to start when they are missing instead of silently falling back to localhost.
 spring:
   datasource:
     url: jdbc:postgresql://${BCOSMOS_DB_HOST}:${BCOSMOS_DB_PORT:5432}/${BCOSMOS_DB_NAME}
     username: ${BCOSMOS_DB_USER}
     password: ${BCOSMOS_DB_PASSWORD}
     hikari:
-      pool-name: bcosmos-backend
       maximum-pool-size: ${BCOSMOS_DB_POOL_SIZE:10}
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    open-in-view: false
-  liquibase:
-    enabled: true
-    change-log: classpath:db/changelog/db.changelog-master.yaml
-
-server:
-  port: ${SERVER_PORT:8080}
 
 bcosmos:
   repository:
     # No default: a production deployment must state which directories it may read.
     allowed-roots: ${BCOSMOS_ALLOWED_ROOTS}
-    limits:
-      max-files: ${BCOSMOS_MAX_FILES:20000}
-      max-file-size-bytes: ${BCOSMOS_MAX_FILE_SIZE_BYTES:2000000}
-    ignored-directories: []
 
 management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info
   endpoint:
     health:
       show-details: never

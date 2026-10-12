@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${BCOSMOS_DB_HOST:localhost}:${BCOSMOS_DB_PORT:5432}/${BCOSMOS_DB_NAME:bcosmos}
+    username: ${BCOSMOS_DB_USER:bcosmos}
+    password: ${BCOSMOS_DB_PASSWORD:bcosmos}
+
+bcosmos:
+  repository:
+    allowed-roots: ${BCOSMOS_ALLOWED_ROOTS:${user.home}}
+
+management:
+  endpoint:
+    health:
+      show-details: always

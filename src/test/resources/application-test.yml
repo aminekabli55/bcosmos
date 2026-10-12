@@ -1,10 +1,8 @@
 spring:
-  jpa:
-    hibernate:
-      ddl-auto: validate
-  liquibase:
-    enabled: true
-    change-log: classpath:db/changelog/db.changelog-master.yaml
+  datasource:
+    hikari:
+      maximum-pool-size: 2
+      connection-timeout: 3000
   kafka:
     consumer:
       auto-offset-reset: earliest
@@ -20,5 +18,5 @@ logging:
   level:
     root: WARN
     com.bcosmos: INFO
-    org.testcontainers: WARN
     liquibase: WARN
+    org.testcontainers: WARN

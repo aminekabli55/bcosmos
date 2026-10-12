@@ -1,20 +1,18 @@
 spring:
   application:
     name: backend
-  datasource:
-    url: jdbc:postgresql://${BCOSMOS_DB_HOST:localhost}:${BCOSMOS_DB_PORT:5432}/${BCOSMOS_DB_NAME:bcosmos}
-    username: ${BCOSMOS_DB_USER:bcosmos}
-    password: ${BCOSMOS_DB_PASSWORD:bcosmos}
-    hikari:
-      pool-name: bcosmos-backend
+  profiles:
+    default: dev
   jpa:
     hibernate:
-      # Liquibase is the only owner of the schema (ADR 0009); never let JPA change it.
       ddl-auto: validate
     open-in-view: false
   liquibase:
     enabled: true
     change-log: classpath:db/changelog/db.changelog-master.yaml
+  datasource:
+    hikari:
+      pool-name: bcosmos-backend
 
 server:
   port: ${SERVER_PORT:8080}
@@ -24,17 +22,10 @@ management:
     web:
       exposure:
         include: health,info
-  endpoint:
-    health:
-      show-details: always
 
 bcosmos:
   repository:
-    # A repository must live under one of these roots. Comma-separated, so
-    # BCOSMOS_ALLOWED_ROOTS=/work/repos,/work/other works. Development default: your home directory.
-    allowed-roots: ${BCOSMOS_ALLOWED_ROOTS:${user.home}}
     limits:
       max-files: ${BCOSMOS_MAX_FILES:20000}
       max-file-size-bytes: ${BCOSMOS_MAX_FILE_SIZE_BYTES:2000000}
-    # Empty means the built-in defaults (.git, target, build, out, bin, dist, node_modules, IDE folders, .venv).
     ignored-directories: []
