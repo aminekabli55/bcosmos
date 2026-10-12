@@ -24,3 +24,8 @@ dist/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local environment files (never commit credentials)
+.env
+.env.local
+.env.*.local
