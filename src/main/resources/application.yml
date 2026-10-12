@@ -2,8 +2,6 @@ spring:
   application:
     name: backend
   datasource:
-    # Local development defaults match infrastructure/docker-compose.yml.
-    # Every part is overridable from the environment (see README.md).
     url: jdbc:postgresql://${BCOSMOS_DB_HOST:localhost}:${BCOSMOS_DB_PORT:5432}/${BCOSMOS_DB_NAME:bcosmos}
     username: ${BCOSMOS_DB_USER:bcosmos}
     password: ${BCOSMOS_DB_PASSWORD:bcosmos}
@@ -29,3 +27,14 @@ management:
   endpoint:
     health:
       show-details: always
+
+bcosmos:
+  repository:
+    # A repository must live under one of these roots. Comma-separated, so
+    # BCOSMOS_ALLOWED_ROOTS=/work/repos,/work/other works. Development default: your home directory.
+    allowed-roots: ${BCOSMOS_ALLOWED_ROOTS:${user.home}}
+    limits:
+      max-files: ${BCOSMOS_MAX_FILES:20000}
+      max-file-size-bytes: ${BCOSMOS_MAX_FILE_SIZE_BYTES:2000000}
+    # Empty means the built-in defaults (.git, target, build, out, bin, dist, node_modules, IDE folders, .venv).
+    ignored-directories: []

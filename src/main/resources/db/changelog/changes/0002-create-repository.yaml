@@ -1,0 +1,72 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0002-create-repository
+      author: bcosmos
+      comment: >
+        Registered repositories (spec v2 section 4.1). canonical_local_path is private metadata: it is stored and
+        used to read files, but never returned by the REST API (spec section 8). The unique constraint keeps one row
+        per canonical path, so registering the same folder twice is rejected instead of analysed twice.
+      changes:
+        - createTable:
+            tableName: repository
+            remarks: Repositories BCosmos may analyse
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(200)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: canonical_local_path
+                  type: varchar(1000)
+                  remarks: Private. Canonical (symlink-resolved) path, validated against the configured allowed roots.
+                  constraints:
+                    nullable: false
+              - column:
+                  name: source_type
+                  type: varchar(20)
+                  remarks: LOCAL for a registered local repository, MINED for a cloned corpus repository.
+                  constraints:
+                    nullable: false
+              - column:
+                  name: primary_language
+                  type: varchar(40)
+              - column:
+                  name: remote_url
+                  type: varchar(1000)
+              - column:
+                  name: default_branch
+                  type: varchar(200)
+              - column:
+                  name: license_spdx
+                  type: varchar(80)
+              - column:
+                  name: status
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: repository
+            columnNames: canonical_local_path
+            constraintName: uq_repository_canonical_local_path
+        - createIndex:
+            tableName: repository
+            indexName: idx_repository_status
+            columns:
+              - column:
+                  name: status
+      rollback:
+        - dropTable:
+            tableName: repository

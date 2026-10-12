@@ -2,3 +2,22 @@ databaseChangeLog:
   - include:
       file: changes/0001-enable-pgvector.yaml
       relativeToChangelogFile: true
+  # Phase 1 (core slice): repository, analysis_run, job, file_record, symbol, finding.
+  - include:
+      file: changes/0002-create-repository.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/0003-create-analysis-run.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/0004-create-job.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/0005-create-file-record.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/0006-create-symbol.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/0007-create-finding.yaml
+      relativeToChangelogFile: true

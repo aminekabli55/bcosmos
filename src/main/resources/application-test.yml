@@ -1,0 +1,24 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+  kafka:
+    consumer:
+      auto-offset-reset: earliest
+
+bcosmos:
+  repository:
+    allowed-roots: ${user.dir},${user.dir}/../sample-data
+    limits:
+      max-files: 500
+      max-file-size-bytes: 100000
+
+logging:
+  level:
+    root: WARN
+    com.bcosmos: INFO
+    org.testcontainers: WARN
+    liquibase: WARN

@@ -1,0 +1,74 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0005-create-file-record
+      author: bcosmos
+      comment: >
+        One analysed file per run (spec v2 section 4.1). relative_path is repository-relative by definition, so no
+        absolute path ever reaches the database or the API. parse_error records why a file failed (parser problem,
+        unreadable file, size limit) instead of dropping it silently.
+      changes:
+        - createTable:
+            tableName: file_record
+            remarks: Files seen by one analysis run
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: run_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: relative_path
+                  type: varchar(1000)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: language
+                  type: varchar(40)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: content_hash
+                  type: varchar(64)
+                  remarks: Null when the file was skipped before it was read (size limit or unreadable).
+              - column:
+                  name: line_count
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: parse_status
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: parse_error
+                  type: varchar(1000)
+        - addForeignKeyConstraint:
+            baseTableName: file_record
+            baseColumnNames: run_id
+            referencedTableName: analysis_run
+            referencedColumnNames: id
+            constraintName: fk_file_record_analysis_run
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            tableName: file_record
+            columnNames: run_id, relative_path
+            constraintName: uq_file_record_run_path
+        - createIndex:
+            tableName: file_record
+            indexName: idx_file_record_run_status
+            columns:
+              - column:
+                  name: run_id
+              - column:
+                  name: parse_status
+      rollback:
+        - dropTable:
+            tableName: file_record

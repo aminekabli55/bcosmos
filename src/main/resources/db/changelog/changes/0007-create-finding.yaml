@@ -1,0 +1,158 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0007-create-finding
+      author: bcosmos
+      comment: >
+        Normalized findings (spec v2 section 4.1). Both severities are kept: severity is the normalized scale the UI
+        filters on, original_severity keeps what the tool said. snippet and normalized_snippet are additions to the
+        spec table: the Quality screen shows a source preview and the fingerprint needs the normalized form, and
+        re-reading the file at display time would show code that may have changed since the run.
+      changes:
+        - createTable:
+            tableName: finding
+            remarks: Findings reported by one analysis run
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: run_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: file_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tool
+                  type: varchar(40)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tool_version
+                  type: varchar(120)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: rule_id
+                  type: varchar(200)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: original_severity
+                  type: varchar(40)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: severity
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: severity_rank
+                  type: integer
+                  remarks: Ordinal of the normalized severity, so the database can order findings by severity.
+                  constraints:
+                    nullable: false
+              - column:
+                  name: message
+                  type: varchar(1000)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: start_line
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: start_column
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: end_line
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: end_column
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: symbol_qualified_name
+                  type: varchar(1000)
+              - column:
+                  name: snippet
+                  type: varchar(600)
+              - column:
+                  name: normalized_snippet
+                  type: varchar(600)
+              - column:
+                  name: fingerprint
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: triage_status
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: finding
+            baseColumnNames: run_id
+            referencedTableName: analysis_run
+            referencedColumnNames: id
+            constraintName: fk_finding_analysis_run
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: finding
+            baseColumnNames: file_id
+            referencedTableName: file_record
+            referencedColumnNames: id
+            constraintName: fk_finding_file_record
+            onDelete: CASCADE
+        - createIndex:
+            tableName: finding
+            indexName: idx_finding_run_severity
+            columns:
+              - column:
+                  name: run_id
+              - column:
+                  name: severity
+        - createIndex:
+            tableName: finding
+            indexName: idx_finding_run_rule
+            columns:
+              - column:
+                  name: run_id
+              - column:
+                  name: rule_id
+        - createIndex:
+            tableName: finding
+            indexName: idx_finding_run_fingerprint
+            columns:
+              - column:
+                  name: run_id
+              - column:
+                  name: fingerprint
+        - createIndex:
+            tableName: finding
+            indexName: idx_finding_file
+            columns:
+              - column:
+                  name: file_id
+      rollback:
+        - dropTable:
+            tableName: finding

@@ -14,6 +14,13 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+/**
+ * Phase 0 acceptance, re-run against the real application context after the phase 1 wiring landed.
+ *
+ * <p>This test intentionally boots the <em>whole</em> application, not a trimmed-down slice: the analysis job
+ * wiring (run service, runner, dispatcher) is only proven to be acyclic when the real context starts. Excluding
+ * those beans here would hide exactly the failure this test exists to catch.</p>
+ */
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class BackendApplicationTests {
