@@ -19,3 +19,8 @@ target/
 
 ### VS Code ###
 .vscode/
+
+# Local environment files (never commit credentials)
+.env
+.env.local
+.env.*.local
