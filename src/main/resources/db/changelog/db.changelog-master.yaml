@@ -1,0 +1,4 @@
+databaseChangeLog:
+  - include:
+      file: changes/0001-enable-pgvector.yaml
+      relativeToChangelogFile: true

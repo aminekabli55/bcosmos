@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: backend
+  datasource:
+    # Local development defaults match infrastructure/docker-compose.yml.
+    # Every part is overridable from the environment (see README.md).
+    url: jdbc:postgresql://${BCOSMOS_DB_HOST:localhost}:${BCOSMOS_DB_PORT:5432}/${BCOSMOS_DB_NAME:bcosmos}
+    username: ${BCOSMOS_DB_USER:bcosmos}
+    password: ${BCOSMOS_DB_PASSWORD:bcosmos}
+    hikari:
+      pool-name: bcosmos-backend
+  jpa:
+    hibernate:
+      # Liquibase is the only owner of the schema (ADR 0009); never let JPA change it.
+      ddl-auto: validate
+    open-in-view: false
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
