@@ -21,5 +21,61 @@ services:
     ports:
       - "9092:9092"
 
+  # Spark runs in Docker rather than as a local PySpark/JVM install (ADR 0017). Profile `spark`, used from
+  # Phase 5. The jobs directory is bind-mounted, so the same scripts run locally under pytest and here under a
+  # real standalone cluster.
+  spark-master:
+    image: apache/spark:4.2.0-python3
+    profiles: ["spark"]
+    hostname: spark-master
+    environment:
+      # Keep the daemon in the foreground so the container is the process, and advertise a routable name.
+      SPARK_NO_DAEMONIZE: "true"
+      SPARK_MASTER_HOST: spark-master
+    command: ["/opt/spark/sbin/start-master.sh"]
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    volumes:
+      - ../spark-jobs:/opt/jobs
+      - sparkdata:/opt/bcosmos-data
+
+  spark-worker:
+    image: apache/spark:4.2.0-python3
+    profiles: ["spark"]
+    hostname: spark-worker
+    environment:
+      SPARK_NO_DAEMONIZE: "true"
+      SPARK_MASTER_URL: spark://spark-master:7077
+      SPARK_WORKER_CORES: "2"
+      SPARK_WORKER_MEMORY: 2g
+    command: ["/opt/spark/sbin/start-worker.sh", "spark://spark-master:7077"]
+    depends_on:
+      - spark-master
+    ports:
+      - "8081:8081"
+    volumes:
+      - ../spark-jobs:/opt/jobs
+      - sparkdata:/opt/bcosmos-data
+
+  # One-off client: `docker compose run --rm spark-submit --master spark://spark-master:7077 /opt/jobs/<job>.py`.
+  # PySpark applications run in client mode (standalone does not support deploy mode for Python), so the driver
+  # lives in this container and must stay alive for the duration of the job.
+  spark-submit:
+    image: apache/spark:4.2.0-python3
+    profiles: ["spark"]
+    hostname: spark-submit
+    environment:
+      SPARK_MASTER_URL: spark://spark-master:7077
+    working_dir: /opt/jobs
+    entrypoint: ["/opt/spark/bin/spark-submit"]
+    depends_on:
+      - spark-master
+      - spark-worker
+    volumes:
+      - ../spark-jobs:/opt/jobs
+      - sparkdata:/opt/bcosmos-data
+
 volumes:
   pgdata:
+  sparkdata:
