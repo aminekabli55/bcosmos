@@ -1,0 +1,11 @@
+# Local environment files (never commit credentials)
+.env
+.env.local
+.env.*.local
+
+# IDE files
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
