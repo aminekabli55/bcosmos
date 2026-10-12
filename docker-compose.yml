@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_DB: bcosmos
+      POSTGRES_USER: bcosmos
+      POSTGRES_PASSWORD: bcosmos
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bcosmos -d bcosmos"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  kafka:
+    image: apache/kafka:4.3.1
+    profiles: ["pipeline"]
+    ports:
+      - "9092:9092"
+
+volumes:
+  pgdata:
