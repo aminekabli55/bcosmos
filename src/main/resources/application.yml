@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: analysis-worker
+  datasource:
+    # Local development defaults match infrastructure/docker-compose.yml.
+    url: jdbc:postgresql://${BCOSMOS_DB_HOST:localhost}:${BCOSMOS_DB_PORT:5432}/${BCOSMOS_DB_NAME:bcosmos}
+    username: ${BCOSMOS_DB_USER:bcosmos}
+    password: ${BCOSMOS_DB_PASSWORD:bcosmos}
+    hikari:
+      pool-name: bcosmos-analysis-worker
+  jpa:
+    hibernate:
+      # Liquibase is the only owner of the schema (ADR 0009); never let JPA change it.
+      ddl-auto: validate
+    open-in-view: false
+  liquibase:
+    # The backend owns the migrations; the worker only reads and writes rows.
+    enabled: false
+
+server:
+  port: ${SERVER_PORT:8081}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always

@@ -1,5 +1,0 @@
-spring :
-  application :
-    name : analysis-worker
-server:
-  port: 8081

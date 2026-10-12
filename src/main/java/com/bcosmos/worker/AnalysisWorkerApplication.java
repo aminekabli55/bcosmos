@@ -1,4 +1,4 @@
-package com.bcosmos.analysis_worker;
+package com.bcosmos.worker;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
