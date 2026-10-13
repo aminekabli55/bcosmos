@@ -1,0 +1,264 @@
+@if (analysisId() === null) {
+  <section class="card">
+    <h1>Quality</h1>
+    <p class="state">
+      No analysis run selected. Open a run from <a routerLink="/repositories">Repositories</a> to see its findings.
+    </p>
+  </section>
+} @else {
+  <section class="card">
+    <div class="card__head">
+      <h1>Analysis run #{{ analysisId() }}</h1>
+      <div class="head-actions">
+        @if (!run() || !isTerminalStatus(run()!.status)) {
+          <span class="muted">polling…</span>
+        }
+        <button type="button" class="button button--ghost" (click)="reloadRun()">Refresh</button>
+      </div>
+    </div>
+
+    @if (runLoading() && !run()) {
+      <p class="state">Loading run…</p>
+    } @else if (runError()) {
+      <p class="state state--error" role="alert">{{ runError() }}</p>
+    } @else if (run(); as run) {
+      <dl class="counters">
+        <div>
+          <dt>Status</dt>
+          <dd><span class="badge" [class]="'badge badge--run-' + run.status">{{ run.status }}</span></dd>
+        </div>
+        <div>
+          <dt>Stage</dt>
+          <dd>{{ run.stage }}</dd>
+        </div>
+        <div>
+          <dt>Files discovered</dt>
+          <dd>{{ run.filesDiscovered }}</dd>
+        </div>
+        <div>
+          <dt>Parsed</dt>
+          <dd>{{ run.filesParsed }}</dd>
+        </div>
+        <div>
+          <dt>Parse failures</dt>
+          <dd>{{ run.filesFailed }}</dd>
+        </div>
+        <div>
+          <dt>Findings</dt>
+          <dd>{{ run.findingsCount }}</dd>
+        </div>
+        <div>
+          <dt>Symbols</dt>
+          <dd>{{ run.symbolsCount }}</dd>
+        </div>
+        <div>
+          <dt>Started</dt>
+          <dd>{{ formatInstant(run.startedAt) }}</dd>
+        </div>
+        <div>
+          <dt>Finished</dt>
+          <dd>{{ formatInstant(run.finishedAt) }}</dd>
+        </div>
+        <div>
+          <dt>Parser</dt>
+          <dd class="mono">{{ run.parserVersion ?? '—' }}</dd>
+        </div>
+        <div>
+          <dt>Analyzer</dt>
+          <dd class="mono">{{ run.analyzerVersion ?? '—' }}</dd>
+        </div>
+      </dl>
+
+      @if (run.errorSummary) {
+        <div class="notice notice--error" role="alert">
+          {{ run.errorCode }}: {{ run.errorSummary }}
+        </div>
+      }
+      @if (run.jobErrorSummary) {
+        <div class="notice notice--error" role="alert">job: {{ run.jobErrorSummary }}</div>
+      }
+    }
+  </section>
+
+  <section class="card">
+    <div class="card__head">
+      <h2>Files that failed to parse ({{ failures().length }})</h2>
+      <span class="muted">counted in the run, never hidden</span>
+    </div>
+
+    @if (failures().length === 0) {
+      <p class="state">No parse failures recorded for this run.</p>
+    } @else {
+      <table>
+        <thead>
+          <tr>
+            <th>File</th>
+            <th>Language</th>
+            <th>Lines</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (failure of failures(); track failure.id) {
+            <tr>
+              <td class="mono">{{ failure.filePath }}</td>
+              <td class="muted">{{ failure.language ?? '—' }}</td>
+              <td class="muted">{{ failure.lineCount }}</td>
+              <td>
+                <div class="parse-error" [title]="failure.parseError ?? 'parse failed'">
+                  {{ failure.parseError ?? 'parse failed' }}
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </section>
+
+  <section class="card">
+    <div class="card__head">
+      <h2>Findings ({{ totalItems() }})</h2>
+      <button type="button" class="button button--ghost" (click)="clearFilters()">Clear filters</button>
+    </div>
+
+    <div class="filters">
+      <div class="field">
+        <label for="filter-severity">Severity</label>
+        <select id="filter-severity" class="select" (change)="onSeverityChange($event)">
+          <option value="" [selected]="severity() === ''">All</option>
+          @for (option of severities; track option) {
+            <option [value]="option" [selected]="option === severity()">{{ option }}</option>
+          }
+        </select>
+      </div>
+      <div class="field">
+        <label for="filter-rule">Rule (exact id)</label>
+        <input
+          id="filter-rule"
+          class="input mono"
+          type="text"
+          list="rule-suggestions"
+          [value]="rule()"
+          (input)="onRuleInput($event)"
+          (change)="applyFilters()"
+          placeholder="EmptyCatchBlock"
+        />
+        <datalist id="rule-suggestions">
+          @for (suggestion of ruleSuggestions(); track suggestion) {
+            <option [value]="suggestion"></option>
+          }
+        </datalist>
+      </div>
+      <div class="field">
+        <label for="filter-file">File contains</label>
+        <input
+          id="filter-file"
+          class="input mono"
+          type="text"
+          [value]="file()"
+          (input)="onFileInput($event)"
+          (change)="applyFilters()"
+          placeholder="BookService.java"
+        />
+      </div>
+      <button type="button" class="button" (click)="applyFilters()">Apply</button>
+    </div>
+
+    @if (findingsError()) {
+      <div class="notice notice--error" role="alert">{{ findingsError() }}</div>
+    }
+
+    @if (findingsLoading() && findings().length === 0) {
+      <p class="state">Loading findings…</p>
+    } @else if (findings().length === 0) {
+      <p class="state">No findings match these filters.</p>
+    } @else {
+      <div class="findings-layout">
+        <div>
+          <table>
+            <thead>
+              <tr>
+                <th>Severity</th>
+                <th>Rule</th>
+                <th>Message</th>
+                <th>File</th>
+                <th>Lines</th>
+                <th>Symbol</th>
+                <th>Triage</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (finding of findings(); track finding.id) {
+                <tr
+                  class="clickable"
+                  [class.is-selected]="selected()?.id === finding.id"
+                  (click)="select(finding)"
+                  (keydown.enter)="select(finding)"
+                  tabindex="0"
+                >
+                  <td>
+                    <span class="badge" [class]="'badge badge--severity-' + finding.severity">{{
+                      finding.severity
+                    }}</span>
+                  </td>
+                  <td class="mono">{{ finding.ruleId }}</td>
+                  <td>{{ finding.message ?? '—' }}</td>
+                  <td class="mono">{{ finding.filePath ?? '—' }}</td>
+                  <td class="muted">{{ finding.startLine }}–{{ finding.endLine }}</td>
+                  <td class="mono muted">{{ finding.symbolQualifiedName ?? '—' }}</td>
+                  <td class="muted">{{ finding.triageStatus }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+
+          <div class="pager">
+            <button type="button" class="button button--ghost" [disabled]="page() === 0" (click)="previousPage()">
+              Previous
+            </button>
+            <span>Page {{ page() + 1 }} of {{ totalPages() === 0 ? 1 : totalPages() }} · {{ totalItems() }} findings</span>
+            <button
+              type="button"
+              class="button button--ghost"
+              [disabled]="page() + 1 >= totalPages()"
+              (click)="nextPage()"
+            >
+              Next
+            </button>
+            <label class="muted" for="page-size">per page</label>
+            <select id="page-size" class="select" (change)="onSizeChange($event)">
+              @for (option of pageSizes; track option) {
+                <option [value]="option" [selected]="option === size()">{{ option }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        @if (selected(); as finding) {
+          <aside class="preview">
+            <h3>Evidence</h3>
+            <p class="mono">{{ finding.filePath ?? '—' }}:{{ finding.startLine }}</p>
+            <p class="muted">
+              {{ finding.ruleId }} · {{ finding.tool ?? 'tool' }} {{ finding.toolVersion ?? '' }} · normalized
+              {{ finding.severity }} (was {{ finding.originalSeverity ?? '—' }})
+            </p>
+            <p class="muted mono fingerprint">fingerprint {{ finding.fingerprint }}</p>
+            @if (preview(); as lines) {
+              <div class="source">
+                @for (line of lines; track line.number) {
+                  <div class="source__line" [class.source__line--first]="line.number === finding.startLine">
+                    <span class="source__number">{{ line.number }}</span>
+                    <span class="source__text">{{ line.text }}</span>
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="state">No snippet stored with this finding.</p>
+            }
+          </aside>
+        }
+      </div>
+    }
+  </section>
+}

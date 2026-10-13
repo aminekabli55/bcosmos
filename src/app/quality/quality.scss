@@ -1,0 +1,78 @@
+/* A parser error can be a wall of expected tokens; show the start of it and keep the rest reachable. */
+.parse-error {
+  max-height: 4.5rem;
+  max-width: 32rem;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+
+.head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.findings-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 1000px) {
+  .findings-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.preview {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  background: var(--bg);
+  align-self: start;
+}
+
+.preview h3 {
+  margin-bottom: 0.5rem;
+}
+
+.preview p {
+  margin: 0 0 0.4rem;
+  font-size: 0.8125rem;
+}
+
+.fingerprint {
+  overflow-wrap: anywhere;
+}
+
+.source {
+  margin-top: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  overflow-x: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+}
+
+.source__line {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0 0.5rem;
+  white-space: pre;
+}
+
+.source__line--first {
+  background: var(--warn-soft);
+}
+
+.source__number {
+  min-width: 2.5rem;
+  text-align: right;
+  color: var(--muted);
+  user-select: none;
+}

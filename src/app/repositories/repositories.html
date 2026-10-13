@@ -1,0 +1,160 @@
+<section class="card">
+  <div class="card__head">
+    <h1>Repositories</h1>
+    <button type="button" class="button button--ghost" (click)="loadRepositories()">Refresh</button>
+  </div>
+
+  <form class="form-row" (submit)="register($event)">
+    <div class="field">
+      <label for="repository-name">Name (optional)</label>
+      <input
+        id="repository-name"
+        class="input"
+        type="text"
+        [value]="name()"
+        (input)="onNameInput($event)"
+        placeholder="java-fixture"
+      />
+    </div>
+    <div class="field grow">
+      <label for="repository-path">Local path</label>
+      <input
+        id="repository-path"
+        class="input mono"
+        type="text"
+        [value]="localPath()"
+        (input)="onPathInput($event)"
+        placeholder="/path/to/repository"
+      />
+    </div>
+    <button type="submit" class="button" [disabled]="registering()">
+      {{ registering() ? 'Registering…' : 'Register' }}
+    </button>
+  </form>
+
+  <p class="state">
+    An absolute path inside a directory the backend is allowed to read. The repository is only read: BCosmos never
+    builds or runs anything in it.
+  </p>
+
+  @if (registerError()) {
+    <div class="notice notice--error" role="alert">{{ registerError() }}</div>
+  }
+  @if (registerNotice()) {
+    <div class="notice notice--ok">{{ registerNotice() }}</div>
+  }
+</section>
+
+<section class="card">
+  <div class="card__head">
+    <h2>Registered repositories</h2>
+    @if (repositories().length > 0) {
+      <span class="muted">{{ repositories().length }} shown</span>
+    }
+  </div>
+
+  @if (loading()) {
+    <p class="state">Loading repositories…</p>
+  } @else if (error()) {
+    <p class="state state--error" role="alert">{{ error() }}</p>
+  } @else if (repositories().length === 0) {
+    <p class="state">No repositories yet. Register one above to start.</p>
+  } @else {
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Source</th>
+          <th>Language</th>
+          <th>Status</th>
+          <th>Registered</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (repository of repositories(); track repository.id) {
+          <tr [class.is-selected]="selected()?.id === repository.id">
+            <td>{{ repository.name }}</td>
+            <td class="muted">{{ repository.sourceType }}</td>
+            <td class="muted">{{ repository.primaryLanguage ?? '—' }}</td>
+            <td>
+              <span class="badge" [class]="'badge badge--run-' + repository.status">{{ repository.status }}</span>
+            </td>
+            <td class="muted">{{ formatInstant(repository.createdAt) }}</td>
+            <td class="actions">
+              <button type="button" class="button" [disabled]="starting()" (click)="startAnalysis(repository)">
+                Analyse
+              </button>
+              <button type="button" class="button button--ghost" (click)="select(repository)">Runs</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</section>
+
+@if (selected(); as repository) {
+  <section class="card">
+    <div class="card__head">
+      <h2>Analyses of {{ repository.name }}</h2>
+      <button type="button" class="button button--ghost" (click)="select(repository)">Refresh</button>
+    </div>
+
+    @if (runsError()) {
+      <div class="notice notice--error" role="alert">{{ runsError() }}</div>
+    }
+
+    @if (runsLoading() && runs().length === 0) {
+      <p class="state">Loading runs…</p>
+    } @else if (runs().length === 0) {
+      <p class="state">No analysis yet. Use <em>Analyse</em> to start one.</p>
+    } @else {
+      <table>
+        <thead>
+          <tr>
+            <th>Run</th>
+            <th>Status</th>
+            <th>Stage</th>
+            <th>Discovered</th>
+            <th>Parsed</th>
+            <th>Failed</th>
+            <th>Findings</th>
+            <th>Symbols</th>
+            <th>Started</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (run of runs(); track run.id) {
+            <tr>
+              <td class="mono">#{{ run.id }}</td>            <td>
+                <span class="badge" [class]="'badge badge--run-' + run.status">{{ run.status }}</span>
+                @if (!isTerminalStatus(run.status)) {
+                  <span class="muted"> · polling</span>
+                }
+              </td>
+              <td class="muted">{{ run.stage }}</td>
+              <td>{{ run.filesDiscovered }}</td>
+              <td>{{ run.filesParsed }}</td>
+              <td [class.muted]="run.filesFailed === 0">{{ run.filesFailed }}</td>
+              <td>{{ run.findingsCount }}</td>
+              <td>{{ run.symbolsCount }}</td>
+              <td class="muted">{{ formatInstant(run.startedAt) }}</td>
+              <td class="actions">
+                <a class="button button--ghost" [routerLink]="['/quality', run.id]">Findings</a>
+              </td>
+            </tr>
+            @if (run.errorSummary) {
+              <tr class="error-row">
+                <td colspan="10" class="state state--error">
+                  {{ run.errorCode }}: {{ run.errorSummary }}
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    }
+  </section>
+}

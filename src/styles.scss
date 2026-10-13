@@ -1,1 +1,267 @@
-/* You can add global styles to this file, and also import other style files */
+/* Shared tokens and element styles for the Phase 1 screens. Component styles stay local to their component. */
+
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --border: #e2e5ea;
+  --text: #1c2024;
+  --muted: #5c6672;
+  --accent: #2f6feb;
+  --accent-soft: #e8f0fe;
+  --danger: #b3261e;
+  --danger-soft: #fdecea;
+  --ok: #1f7a4d;
+  --ok-soft: #e7f5ee;
+  --warn-soft: #fdf3e3;
+  --sev-critical: #b3261e;
+  --sev-high: #c8501f;
+  --sev-medium: #96690a;
+  --sev-low: #1f7a4d;
+  --sev-info: #4b5563;
+}
+
+body {
+  margin: 0;
+  font-family:
+    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+h2 {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+h3 {
+  font-size: 0.95rem;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+tbody tr:hover {
+  background: var(--bg);
+}
+
+tbody tr.is-selected {
+  background: var(--accent-soft);
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.badge--severity-CRITICAL {
+  color: var(--sev-critical);
+  background: var(--danger-soft);
+  border-color: var(--sev-critical);
+}
+.badge--severity-HIGH {
+  color: var(--sev-high);
+  background: var(--warn-soft);
+  border-color: var(--sev-high);
+}
+.badge--severity-MEDIUM {
+  color: var(--sev-medium);
+  background: var(--warn-soft);
+  border-color: var(--sev-medium);
+}
+.badge--severity-LOW {
+  color: var(--sev-low);
+  background: var(--ok-soft);
+  border-color: var(--sev-low);
+}
+.badge--severity-INFO {
+  color: var(--sev-info);
+  border-color: var(--sev-info);
+}
+
+.badge--run-SUCCEEDED,
+.badge--run-ANALYSED {
+  color: var(--ok);
+  background: var(--ok-soft);
+  border-color: var(--ok);
+}
+
+.badge--run-FAILED,
+.badge--run-PENDING,
+.badge--run-RUNNING {
+  color: var(--sev-high);
+  background: var(--warn-soft);
+  border-color: var(--sev-high);
+}
+
+.button {
+  font: inherit;
+  font-size: 0.8125rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+.button--ghost {
+  background: transparent;
+  color: var(--accent);
+}
+
+.input,
+.select {
+  font: inherit;
+  font-size: 0.8125rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.field label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.state {
+  padding: 0.75rem 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.state--error {
+  color: var(--danger);
+}
+
+.notice {
+  padding: 0.6rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  margin-bottom: 0.75rem;
+}
+
+.notice--error {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.notice--ok {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.counters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  font-size: 0.875rem;
+}
+
+.counters dt {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.counters dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--muted);
+  margin-top: 0.75rem;
+}

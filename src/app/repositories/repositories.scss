@@ -1,0 +1,14 @@
+.grow {
+  flex: 1;
+  min-width: 320px;
+}
+
+.actions {
+  display: flex;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+
+.error-row td {
+  background: var(--danger-soft);
+}
