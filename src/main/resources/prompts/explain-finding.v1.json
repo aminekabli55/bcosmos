@@ -1,0 +1,49 @@
+{
+  "type": "object",
+  "required": ["summary", "explanation", "confidence", "references"],
+  "properties": {
+    "summary": {
+      "type": "string"
+    },
+    "explanation": {
+      "type": "string"
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["LOW", "MEDIUM", "HIGH"]
+    },
+    "references": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["file", "startLine"],
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "startLine": {
+            "type": "integer"
+          },
+          "endLine": {
+            "type": "integer"
+          },
+          "why": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "testsToRun": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "uncertainties": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

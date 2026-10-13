@@ -1,0 +1,162 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0008-create-llm-model
+      author: bcosmos
+      comment: >
+        The model registry (spec v2 sections 4.1 and 7.1). API keys are deliberately absent: they come from
+        environment variables only, never from the database or the browser (ADR 0007, spec section 10).
+        is_default and updated_at are additions to the spec's column list: the settings screen needs a persisted
+        default model, and an edited row has to say when it was edited. Seed rows are disabled on purpose -
+        sending code to a hosted provider is opt-in per model (spec section 10).
+      changes:
+        - createTable:
+            tableName: llm_model
+            remarks: Hosted and fine-tuned models the gateway can call
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: provider
+                  type: varchar(40)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: model_name
+                  type: varchar(120)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: kind
+                  type: varchar(20)
+                  remarks: HOSTED or FINETUNED (spec section 7.5)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: enabled
+                  type: boolean
+                  remarks: Sending code to this provider is opt-in per model.
+                  constraints:
+                    nullable: false
+              - column:
+                  name: is_default
+                  type: boolean
+                  remarks: The model used when a request does not name one; at most one row is true.
+                  constraints:
+                    nullable: false
+              - column:
+                  name: context_window
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: cost_per_1k_in
+                  type: numeric(12, 6)
+                  remarks: Estimated price per 1000 input tokens, used for the usage rows.
+                  constraints:
+                    nullable: false
+              - column:
+                  name: cost_per_1k_out
+                  type: numeric(12, 6)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: notes
+                  type: varchar(500)
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: llm_model
+            columnNames: provider, model_name
+            constraintName: uq_llm_model_provider_model_name
+        - insert:
+            tableName: llm_model
+            columns:
+              - column:
+                  name: provider
+                  value: GEMINI
+              - column:
+                  name: model_name
+                  value: gemini-2.5-flash
+              - column:
+                  name: kind
+                  value: HOSTED
+              - column:
+                  name: enabled
+                  valueBoolean: false
+              - column:
+                  name: is_default
+                  valueBoolean: true
+              - column:
+                  name: context_window
+                  valueNumeric: 1000000
+              - column:
+                  name: cost_per_1k_in
+                  valueNumeric: 0.000300
+              - column:
+                  name: cost_per_1k_out
+                  valueNumeric: 0.002500
+              - column:
+                  name: notes
+                  value: >-
+                    Seeded default. Enable it and set GEMINI_API_KEY to send prompts. Free tier available for
+                    testing; check the current limits and prices before relying on them.
+              - column:
+                  name: created_at
+                  valueComputed: now()
+              - column:
+                  name: updated_at
+                  valueComputed: now()
+        - insert:
+            tableName: llm_model
+            columns:
+              - column:
+                  name: provider
+                  value: OPENAI_COMPATIBLE
+              - column:
+                  name: model_name
+                  value: gpt-4o-mini
+              - column:
+                  name: kind
+                  value: HOSTED
+              - column:
+                  name: enabled
+                  valueBoolean: false
+              - column:
+                  name: is_default
+                  valueBoolean: false
+              - column:
+                  name: context_window
+                  valueNumeric: 128000
+              - column:
+                  name: cost_per_1k_in
+                  valueNumeric: 0.000150
+              - column:
+                  name: cost_per_1k_out
+                  valueNumeric: 0.000600
+              - column:
+                  name: notes
+                  value: >-
+                    Seeded second model so the same prompt can run on two providers. Set OPENAI_API_KEY, or point
+                    bcosmos.ai.providers.openai-compatible.base-url at any OpenAI-compatible endpoint.
+              - column:
+                  name: created_at
+                  valueComputed: now()
+              - column:
+                  name: updated_at
+                  valueComputed: now()
+      rollback:
+        - dropTable:
+            tableName: llm_model

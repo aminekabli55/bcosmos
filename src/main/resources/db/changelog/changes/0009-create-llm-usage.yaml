@@ -1,0 +1,106 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0009-create-llm-usage
+      author: bcosmos
+      comment: >
+        Usage recording (spec v2 section 7.1: tokens, latency, estimated cost per call). The table is an addition
+        to the spec's list: Phase 2 has no suggestion row yet, and usage must be recorded even when the call failed
+        or the output was rejected by schema validation. provider and model_name are denormalized so a usage row
+        stays readable after the registry row is renamed, and model_id is nullable with ON DELETE SET NULL so the
+        history survives a registry change.
+      changes:
+        - createTable:
+            tableName: llm_usage
+            remarks: One row per model call, successful or not
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: model_id
+                  type: bigint
+              - column:
+                  name: provider
+                  type: varchar(40)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: model_name
+                  type: varchar(120)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: operation
+                  type: varchar(20)
+                  remarks: CHAT, STRUCTURED or EMBED
+                  constraints:
+                    nullable: false
+              - column:
+                  name: prompt_version
+                  type: varchar(60)
+              - column:
+                  name: tokens_in
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tokens_out
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: latency_ms
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: attempts
+                  type: integer
+                  remarks: Provider attempts, including retries driven by the gateway.
+                  constraints:
+                    nullable: false
+              - column:
+                  name: estimated_cost_usd
+                  type: numeric(12, 6)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: outcome
+                  type: varchar(30)
+                  remarks: SUCCESS, SCHEMA_INVALID, PROVIDER_ERROR or TIMEOUT.
+                  constraints:
+                    nullable: false
+              - column:
+                  name: error_code
+                  type: varchar(60)
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: llm_usage
+            baseColumnNames: model_id
+            referencedTableName: llm_model
+            referencedColumnNames: id
+            constraintName: fk_llm_usage_llm_model
+            onDelete: SET NULL
+        - createIndex:
+            tableName: llm_usage
+            indexName: idx_llm_usage_created_at
+            columns:
+              - column:
+                  name: created_at
+        - createIndex:
+            tableName: llm_usage
+            indexName: idx_llm_usage_model
+            columns:
+              - column:
+                  name: model_id
+      rollback:
+        - dropTable:
+            tableName: llm_usage

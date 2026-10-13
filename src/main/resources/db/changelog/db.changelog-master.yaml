@@ -21,3 +21,9 @@ databaseChangeLog:
   - include:
       file: changes/0007-create-finding.yaml
       relativeToChangelogFile: true
+  - include:
+      file: changes/0008-create-llm-model.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/0009-create-llm-usage.yaml
+      relativeToChangelogFile: true

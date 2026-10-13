@@ -1,5 +1,16 @@
 package com.bcosmos.backend.web;
 
+import com.bcosmos.backend.ai.explanation.FindingNotFoundException;
+import com.bcosmos.backend.ai.gateway.InvalidModelUpdateException;
+import com.bcosmos.backend.ai.gateway.LlmDisabledException;
+import com.bcosmos.backend.ai.gateway.LlmProviderException;
+import com.bcosmos.backend.ai.gateway.LlmTimeoutException;
+import com.bcosmos.backend.ai.gateway.MissingApiKeyException;
+import com.bcosmos.backend.ai.gateway.ModelDisabledException;
+import com.bcosmos.backend.ai.gateway.ModelNotConfiguredException;
+import com.bcosmos.backend.ai.gateway.ModelNotFoundException;
+import com.bcosmos.backend.ai.gateway.ProviderNotConfiguredException;
+import com.bcosmos.backend.ai.gateway.StructuredOutputException;
 import com.bcosmos.backend.jobs.AnalysisRunNotFoundException;
 import com.bcosmos.backend.repository.DuplicateRepositoryException;
 import com.bcosmos.backend.repository.InvalidRepositoryPathException;
@@ -45,6 +56,49 @@ public class ApiExceptionHandler {
     @ExceptionHandler(AnalysisRunNotFoundException.class)
     public ProblemDetail handleRunNotFound(AnalysisRunNotFoundException exception) {
         return problem(HttpStatus.NOT_FOUND, "Analysis run not found", exception.getMessage());
+    }
+
+    @ExceptionHandler(FindingNotFoundException.class)
+    public ProblemDetail handleFindingNotFound(FindingNotFoundException exception) {
+        return problem(HttpStatus.NOT_FOUND, "Finding not found", exception.getMessage());
+    }
+
+    @ExceptionHandler(ModelNotFoundException.class)
+    public ProblemDetail handleModelNotFound(ModelNotFoundException exception) {
+        return problem(HttpStatus.NOT_FOUND, "Model not found", exception.getMessage());
+    }
+
+    /** The AI layer is switched off: nothing was sent anywhere, and the request can be repeated once it is on. */
+    @ExceptionHandler(LlmDisabledException.class)
+    public ProblemDetail handleAiDisabled(LlmDisabledException exception) {
+        return problem(HttpStatus.SERVICE_UNAVAILABLE, "AI is switched off", exception.getMessage());
+    }
+
+    /**
+     * The request is fine but the system is not set up for it: the model is not enabled, its provider has no key, no
+     * model is the default yet, or a provider has no endpoint. Each message names what to configure, never a value.
+     */
+    @ExceptionHandler({ModelDisabledException.class, MissingApiKeyException.class, ModelNotConfiguredException.class,
+            ProviderNotConfiguredException.class})
+    public ProblemDetail handleModelNotUsable(RuntimeException exception) {
+        return problem(HttpStatus.CONFLICT, "Model not usable", exception.getMessage());
+    }
+
+    /** A registry edit that cannot be applied as asked (clearing the default, a negative price). */
+    @ExceptionHandler(InvalidModelUpdateException.class)
+    public ProblemDetail handleInvalidModelUpdate(InvalidModelUpdateException exception) {
+        return problem(HttpStatus.BAD_REQUEST, "Invalid model update", exception.getMessage());
+    }
+
+    /** The provider failed, or the answer never matched the schema. */
+    @ExceptionHandler({LlmProviderException.class, StructuredOutputException.class})
+    public ProblemDetail handleProviderFailure(RuntimeException exception) {
+        return problem(HttpStatus.BAD_GATEWAY, "Model call failed", exception.getMessage());
+    }
+
+    @ExceptionHandler(LlmTimeoutException.class)
+    public ProblemDetail handleModelTimeout(LlmTimeoutException exception) {
+        return problem(HttpStatus.GATEWAY_TIMEOUT, "Model call timed out", exception.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

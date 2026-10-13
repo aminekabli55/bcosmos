@@ -29,3 +29,20 @@ bcosmos:
       max-files: ${BCOSMOS_MAX_FILES:20000}
       max-file-size-bytes: ${BCOSMOS_MAX_FILE_SIZE_BYTES:2000000}
     ignored-directories: []
+  ai:
+    enabled: ${BCOSMOS_AI_ENABLED:false}
+    timeout: ${BCOSMOS_AI_TIMEOUT:30s}
+    connect-timeout: ${BCOSMOS_AI_CONNECT_TIMEOUT:5s}
+    max-attempts: ${BCOSMOS_AI_MAX_ATTEMPTS:3}
+    initial-backoff: ${BCOSMOS_AI_INITIAL_BACKOFF:500ms}
+    backoff-multiplier: ${BCOSMOS_AI_BACKOFF_MULTIPLIER:2.0}
+    max-output-tokens: ${BCOSMOS_AI_MAX_OUTPUT_TOKENS:2048}
+    providers:
+      gemini:
+        base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
+        api-key: ${GEMINI_API_KEY:}
+        api-key-env: GEMINI_API_KEY
+      openai-compatible:
+        base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+        api-key: ${OPENAI_API_KEY:}
+        api-key-env: OPENAI_API_KEY
