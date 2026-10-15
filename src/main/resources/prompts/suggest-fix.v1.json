@@ -1,0 +1,54 @@
+{
+  "type": "object",
+  "required": ["summary", "problemExplanation", "evidence", "proposedDiff", "risks", "testsToRun", "uncertainties"],
+  "properties": {
+    "summary": {
+      "type": "string"
+    },
+    "problemExplanation": {
+      "type": "string"
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["file", "startLine", "why"],
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "startLine": {
+            "type": "integer"
+          },
+          "endLine": {
+            "type": "integer"
+          },
+          "why": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "proposedDiff": {
+      "type": "string"
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "testsToRun": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "uncertainties": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

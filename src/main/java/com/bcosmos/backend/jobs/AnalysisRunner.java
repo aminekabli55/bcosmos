@@ -65,18 +65,22 @@ public class AnalysisRunner {
         try {
             RepositoryEntity repository = repositoryOf(run);
             Path root = Path.of(repository.getCanonicalLocalPath());
-            LanguageAdapter<?> primary = adapters.primaryAdapter();
-            runService.recordTools(runId, primary);
 
             DiscoveryResult discovery = fileDiscovery.discover(root);
             runService.recordDiscovery(runId, discovery);
+            // Recorded after discovery, so the run names the tools that really produced its findings rather than
+            // the first adapter in the registry (ADR 0034).
+            runService.recordTools(runId, adapters.dominantAdapter(
+                    discovery.files().stream().map(DiscoveredFile::relativePath).toList()));
 
             int parsed = 0;
             int failed = 0;
             for (DiscoveredFile file : discovery.files()) {
-                FileAnalysis analysis = analyseFile(file);
+                AnalysedFile analysed = analyseFile(file);
+                FileAnalysis analysis = analysed.analysis();
                 String contentHash = contentHashOf(file);
-                persistence.saveAnalysedFile(runId, file, languageOf(file.relativePath()), contentHash, analysis);
+                persistence.saveAnalysedFile(runId, file, languageOf(file.relativePath()), contentHash,
+                        analysed.source(), analysis);
                 if (analysis.parsed()) {
                     parsed++;
                 } else {
@@ -92,6 +96,7 @@ public class AnalysisRunner {
                 failed++;
             }
 
+            persistence.resolveRunRelationships(runId);
             runService.finish(runId, parsed, failed);
             log.info("analysis run {} finished: {} files discovered, {} parsed, {} failed, repository {}", runId,
                     discovery.discoveredCount(), parsed, failed, repository.getId());
@@ -108,19 +113,31 @@ public class AnalysisRunner {
     }
 
     /** Analyses one file with its adapter, turning every failure into a recorded result instead of an exception. */
-    private FileAnalysis analyseFile(DiscoveredFile file) {
+    private AnalysedFile analyseFile(DiscoveredFile file) {
         String source;
         try {
             source = Files.readString(file.absolutePath(), StandardCharsets.UTF_8);
         } catch (IOException | RuntimeException e) {
             // A file that is not valid UTF-8 or cannot be read is a recorded failure, not a crashed run.
-            return FileAnalysis.failed(0, "could not be read as UTF-8 text: " + e.getClass().getSimpleName());
+            // There is no text to store: a revision BCosmos could not read is not a revision it can reason about.
+            return new AnalysedFile(
+                    FileAnalysis.failed(0, "could not be read as UTF-8 text: " + e.getClass().getSimpleName()), null);
         }
         Optional<LanguageAdapter<?>> adapter = adapters.forFile(file.relativePath());
         if (adapter.isEmpty()) {
-            return FileAnalysis.failed(countLines(source), "no language adapter handles this file");
+            return new AnalysedFile(FileAnalysis.failed(countLines(source), "no language adapter handles this file"),
+                    source);
         }
-        return analyseWith(adapter.get(), file.relativePath(), source);
+        return new AnalysedFile(analyseWith(adapter.get(), file.relativePath(), source), source);
+    }
+
+    /**
+     * What one file produced, plus the text it was produced from.
+     *
+     * <p>The source travels with the analysis so the persistence step can store the revision it stored findings
+     * about. Reading the file a second time would risk storing findings and text from two different revisions.</p>
+     */
+    private record AnalysedFile(FileAnalysis analysis, String source) {
     }
 
     private <T extends ParsedFile> FileAnalysis analyseWith(LanguageAdapter<T> adapter, Path relativePath,
@@ -131,8 +148,9 @@ public class AnalysisRunner {
                 return FileAnalysis.notParsed(parsed.lineCount(), describeDiagnostics(parsed.diagnostics()));
             }
             List<Symbol> symbols = adapter.extractSymbols(parsed);
+            List<com.bcosmos.core.model.Relationship> relationships = adapter.extractRelationships(parsed);
             List<Finding> findings = normalizer.normalize(adapter.analyze(parsed, adapter.defaultRuleSet()));
-            return FileAnalysis.parsed(parsed.lineCount(), symbols, findings);
+            return FileAnalysis.parsed(parsed.lineCount(), symbols, relationships, findings);
         } catch (AnalysisException e) {
             return FileAnalysis.failed(countLines(source), e.getMessage());
         } catch (RuntimeException e) {

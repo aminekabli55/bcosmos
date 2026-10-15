@@ -37,6 +37,7 @@ public class LlmGateway implements LlmClient {
     private static final String NOTHING_TO_BIND = "the answer could not be read as JSON";
 
     private final AiProperties properties;
+    private final AiEnablement enablement;
     private final ModelRegistry models;
     private final Map<LlmProvider, LlmProviderAdapter> adapters;
     private final UsageRecorder usage;
@@ -46,9 +47,11 @@ public class LlmGateway implements LlmClient {
     private final Retry retry;
     private final Clock clock;
 
-    public LlmGateway(AiProperties properties, ModelRegistry models, List<LlmProviderAdapter> adapterList,
-            UsageRecorder usage, SecretRedactor redactor, ObjectMapper json, Retry retry, Clock clock) {
+    public LlmGateway(AiProperties properties, AiEnablement enablement, ModelRegistry models,
+            List<LlmProviderAdapter> adapterList, UsageRecorder usage, SecretRedactor redactor, ObjectMapper json,
+            Retry retry, Clock clock) {
         this.properties = properties;
+        this.enablement = enablement;
         this.models = models;
         this.adapters = adapterList.stream().collect(Collectors.toUnmodifiableMap(
                 LlmProviderAdapter::provider, Function.identity(), (first, second) -> first));
@@ -117,11 +120,14 @@ public class LlmGateway implements LlmClient {
     @Override
     public EmbedResult embed(EmbedRequest request) {
         requireEnabled();
-        ModelRef model = models.requireUsable(request.modelId());
+        // Embedding has its own capability gate: a chat model answers nonsense to a vector request, and an
+        // embedding model must never be the default for chat.
+        ModelRef model = models.requireEmbeddingModel(request.modelId());
         Call call = new Call(model, LlmOperation.EMBED, null, clock.instant());
         try {
             LlmProviderAdapter adapter = adapterFor(model.provider());
             ProviderEmbeddings embeddings = withRetries(call, () -> adapter.embed(model, request.texts()));
+            requireDeclaredWidth(model, embeddings);
             call.addTokens(embeddings.tokensIn(), 0);
             LlmUsage account = call.usage();
             usage.record(call.row(LlmUsageOutcome.SUCCESS, null));
@@ -131,6 +137,26 @@ public class LlmGateway implements LlmClient {
         } catch (LlmException failure) {
             recordFailure(call, failure);
             throw failure;
+        }
+    }
+
+    /**
+     * A vector only fits the column it is stored in if its width matches what the registry row declares.
+     *
+     * <p>The check is here rather than in each adapter, so both providers are held to the same rule: a silent
+     * 3072-dimensional answer in a 1536-wide table is a corrupt index, not a warning.</p>
+     */
+    private static void requireDeclaredWidth(ModelRef model, ProviderEmbeddings embeddings) {
+        Integer declared = model.embeddingDimension();
+        if (declared == null) {
+            return;
+        }
+        for (float[] vector : embeddings.vectors()) {
+            if (vector.length != declared) {
+                throw new LlmProviderException(LlmErrorCode.PROVIDER_ERROR, model.label() + " returned "
+                        + vector.length + " embedding values but its registry row declares " + declared
+                        + "; set embedding_dimension to the width the provider really returns", false);
+            }
         }
     }
 
@@ -219,8 +245,14 @@ public class LlmGateway implements LlmClient {
                 call.attempts(), failure.errorCode(), failure.getMessage());
     }
 
+    /**
+     * The first gate of every call: the AI layer must be on.
+     *
+     * <p>The answer comes from {@link AiEnablement}, not from the properties, so the Settings screen can switch the
+     * whole layer off without a restart (spec v2 section 10).</p>
+     */
     private void requireEnabled() {
-        if (!properties.enabled()) {
+        if (!enablement.enabled()) {
             throw new LlmDisabledException();
         }
     }

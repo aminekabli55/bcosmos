@@ -1,5 +1,6 @@
 package com.bcosmos.backend.ai.gateway;
 
+import com.bcosmos.backend.persistence.LlmModelCapability;
 import com.bcosmos.backend.persistence.LlmModelKind;
 import com.bcosmos.backend.persistence.LlmProvider;
 import java.math.BigDecimal;
@@ -15,16 +16,20 @@ import java.util.Objects;
  * @param id            registry id
  * @param provider      which adapter talks to it
  * @param modelName     the provider's model name
- * @param kind          hosted or fine-tuned
- * @param contextWindow tokens the provider accepts in one request, for the UI's budget hints
- * @param costPer1kIn   estimated price per 1000 input tokens
- * @param costPer1kOut  estimated price per 1000 output tokens
+ * @param kind               hosted or fine-tuned
+ * @param capability         chat or embedding; the gateway only ever asks this ref for what it can do
+ * @param embeddingDimension vector width requested from the provider, or {@code null} for a chat model
+ * @param contextWindow      tokens the provider accepts in one request, for the UI's budget hints
+ * @param costPer1kIn        estimated price per 1000 input tokens
+ * @param costPer1kOut       estimated price per 1000 output tokens
  */
 public record ModelRef(
         long id,
         LlmProvider provider,
         String modelName,
         LlmModelKind kind,
+        LlmModelCapability capability,
+        Integer embeddingDimension,
         int contextWindow,
         BigDecimal costPer1kIn,
         BigDecimal costPer1kOut) {
@@ -35,8 +40,14 @@ public record ModelRef(
         Objects.requireNonNull(provider, "provider");
         Objects.requireNonNull(modelName, "modelName");
         Objects.requireNonNull(kind, "kind");
+        capability = capability == null ? LlmModelCapability.CHAT : capability;
         Objects.requireNonNull(costPer1kIn, "costPer1kIn");
         Objects.requireNonNull(costPer1kOut, "costPer1kOut");
+    }
+
+    /** True when this model may be asked for vectors. */
+    public boolean embeddingCapable() {
+        return capability == LlmModelCapability.EMBEDDING;
     }
 
     /** How the model is named in a log line or a problem detail. */

@@ -14,6 +14,7 @@ import com.bcosmos.backend.persistence.FileRecordEntity;
 import com.bcosmos.backend.persistence.FileRecordJpaRepository;
 import com.bcosmos.backend.persistence.FindingEntity;
 import com.bcosmos.backend.persistence.FindingJpaRepository;
+import com.bcosmos.backend.persistence.LlmModelCapability;
 import com.bcosmos.backend.persistence.LlmModelEntity;
 import com.bcosmos.backend.persistence.LlmModelJpaRepository;
 import com.bcosmos.backend.persistence.LlmModelKind;
@@ -38,6 +39,7 @@ import java.net.http.HttpResponse;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -162,6 +164,15 @@ class FindingExplanationIntegrationTest {
     }
 
     /**
+     * The stored AI switch lives in the container for the whole class, so it is cleared after every test: a test that
+     * leaves the layer switched off would otherwise decide the outcome of whichever test runs next.
+     */
+    @AfterEach
+    void clearStoredSettings() {
+        jdbc.update("delete from app_setting");
+    }
+
+    /**
      * A registered but switched-off model, created once for the whole class: the rows live in the container for
      * every test, and {@code provider + model_name} is unique by design.
      */
@@ -170,7 +181,8 @@ class FindingExplanationIntegrationTest {
                 .filter(model -> "gemini-2.5-pro-disabled".equals(model.getModelName()))
                 .findFirst()
                 .orElseGet(() -> models.save(new LlmModelEntity(
-                        LlmProvider.GEMINI, "gemini-2.5-pro-disabled", LlmModelKind.HOSTED, false, false, 1_000_000,
+                        LlmProvider.GEMINI, "gemini-2.5-pro-disabled", LlmModelKind.HOSTED,
+                        LlmModelCapability.CHAT, null, false, false, 1_000_000,
                         new BigDecimal("0.001000"), new BigDecimal("0.004000"), "seeded by the test", Instant.now())))
                 .getId();
     }
@@ -349,6 +361,42 @@ class FindingExplanationIntegrationTest {
         assertThat(unknown.body()).contains("Finding not found");
 
         assertThat(PROVIDERS.getAllServeEvents()).isEmpty();
+    }
+
+    @Test
+    void switchesTheWholeAiLayerOffFromSettingsAndBackToTheDeploymentDefault() throws Exception {
+        JsonNode initial = JSON.readTree(get("/api/settings/ai").body());
+        assertThat(initial.path("enabled").asBoolean()).isTrue();
+        assertThat(initial.path("propertyDefault").asBoolean()).isTrue();
+        assertThat(initial.path("overridden").asBoolean()).isFalse();
+        assertThat(initial.path("updatedAt").isNull()).isTrue();
+
+        long findingId = seedFinding();
+        long openAiId = enable("gpt-4o-mini");
+
+        HttpResponse<String> off = put("/api/settings/ai", "{\"enabled\": false}");
+        assertThat(off.statusCode()).isEqualTo(200);
+        JsonNode stored = JSON.readTree(off.body());
+        assertThat(stored.path("enabled").asBoolean()).isFalse();
+        assertThat(stored.path("overridden").asBoolean()).isTrue();
+        assertThat(stored.path("updatedAt").isNull()).isFalse();
+        assertThat(JSON.readTree(get("/api/settings/ai").body()).path("enabled").asBoolean()).isFalse();
+
+        // The whole layer is off: the endpoint refuses and no provider is called (spec v2 section 10).
+        HttpResponse<String> refused = apiPost("/api/findings/" + findingId + "/explanations",
+                "{\"modelId\": " + openAiId + "}");
+        assertThat(refused.statusCode()).isEqualTo(503);
+        assertThat(refused.body()).contains("AI is switched off");
+        assertThat(PROVIDERS.getAllServeEvents()).isEmpty();
+
+        // Analysis and the registry stay usable while AI is off.
+        assertThat(get("/api/models?size=50").statusCode()).isEqualTo(200);
+
+        // Clearing the override hands the decision back to the deployment property.
+        JsonNode cleared = JSON.readTree(put("/api/settings/ai", "{}").body());
+        assertThat(cleared.path("enabled").asBoolean()).isTrue();
+        assertThat(cleared.path("overridden").asBoolean()).isFalse();
+        assertThat(cleared.path("updatedAt").isNull()).isTrue();
     }
 
     @Test

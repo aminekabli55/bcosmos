@@ -1,0 +1,89 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0017-create-worker-file-result
+      author: bcosmos
+      comment: >
+        Idempotency tracking table for the worker (spec v2 section 5.3, ADR 0027). Records each file processed for a
+        given (repository_id, commit_hash, file_path, side, analyzer_version, ruleset_hash). A redelivered message for
+        the exact same tuple is detected here and skipped or updated rather than duplicating findings.
+      changes:
+        - createTable:
+            tableName: worker_file_result
+            remarks: Records processed file results for idempotent pipeline execution
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_worker_file_result
+                    nullable: false
+              - column:
+                  name: repository_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_worker_file_result_repository
+                    references: repository(id)
+                    deleteCascade: true
+              - column:
+                  name: commit_hash
+                  type: varchar(64)
+                  remarks: Full commit hash
+                  constraints:
+                    nullable: false
+              - column:
+                  name: file_path
+                  type: varchar(1000)
+                  remarks: Repository-relative path of the file
+                  constraints:
+                    nullable: false
+              - column:
+                  name: side
+                  type: varchar(16)
+                  remarks: BEFORE or AFTER
+                  constraints:
+                    nullable: false
+              - column:
+                  name: analyzer_version
+                  type: varchar(120)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: ruleset_hash
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: varchar(32)
+                  remarks: OK or FAILED
+                  constraints:
+                    nullable: false
+              - column:
+                  name: finding_count
+                  type: integer
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: processed_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: worker_file_result
+            columnNames: repository_id, commit_hash, file_path, side, analyzer_version, ruleset_hash
+            constraintName: uq_worker_file_result_key
+        - createIndex:
+            tableName: worker_file_result
+            indexName: idx_worker_file_result_repo_commit
+            columns:
+              - column:
+                  name: repository_id
+              - column:
+                  name: commit_hash
+      rollback:
+        - dropTable:
+            tableName: worker_file_result

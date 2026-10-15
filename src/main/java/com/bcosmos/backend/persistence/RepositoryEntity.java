@@ -25,9 +25,10 @@ public class RepositoryEntity {
 
     /**
      * Private metadata: the canonical path is used to read files, never returned by the API (spec section 8) and
-     * never logged (spec section 10).
+     * never logged (spec section 10). Null for a mined repository, which lives in the miner's own cache: the
+     * backend does not own that path and must not invent one (changelog 0016).
      */
-    @Column(name = "canonical_local_path", nullable = false, length = 1000)
+    @Column(name = "canonical_local_path", length = 1000)
     private String canonicalLocalPath;
 
     @Enumerated(EnumType.STRING)
@@ -57,6 +58,10 @@ public class RepositoryEntity {
     protected RepositoryEntity() {
     }
 
+    /**
+     * A repository registered from a local path. The path is required here rather than in the field: the database
+     * check constraint allows {@code NULL} for a mined row, and this constructor is the local case.
+     */
     public RepositoryEntity(
             String name,
             String canonicalLocalPath,
@@ -65,11 +70,29 @@ public class RepositoryEntity {
             RepositoryStatus status,
             Instant createdAt) {
         this.name = Objects.requireNonNull(name, "name");
-        this.canonicalLocalPath = Objects.requireNonNull(canonicalLocalPath, "canonicalLocalPath");
+        this.canonicalLocalPath = canonicalLocalPath;
         this.sourceType = Objects.requireNonNull(sourceType, "sourceType");
+        if (sourceType == RepositorySourceType.LOCAL) {
+            // Mirrors the ck_repository_source constraint, so a bad row fails here rather than in Postgres.
+            Objects.requireNonNull(canonicalLocalPath, "a local repository needs a canonical path");
+        }
         this.primaryLanguage = primaryLanguage;
         this.status = Objects.requireNonNull(status, "status");
         this.createdAt = Objects.requireNonNull(createdAt, "createdAt");
+    }
+
+    /**
+     * A repository the miner clones, identified by its remote URL. It has no local path of its own: the clone lives
+     * in the miner's cache, which this process never reads.
+     */
+    public static RepositoryEntity mined(String name, String remoteUrl, String defaultBranch, String licenseSpdx,
+            Instant createdAt) {
+        RepositoryEntity repository = new RepositoryEntity(name, null, RepositorySourceType.MINED, "java",
+                RepositoryStatus.REGISTERED, createdAt);
+        repository.remoteUrl = Objects.requireNonNull(remoteUrl, "remoteUrl");
+        repository.defaultBranch = defaultBranch;
+        repository.licenseSpdx = licenseSpdx;
+        return repository;
     }
 
     public Long getId() {
@@ -90,6 +113,14 @@ public class RepositoryEntity {
 
     public String getPrimaryLanguage() {
         return primaryLanguage;
+    }
+
+    /**
+     * Set from the files a finished run analysed ({@code PrimaryLanguageResolver}, ADR 0033): registration cannot
+     * know the language of a repository it never reads.
+     */
+    public void setPrimaryLanguage(String primaryLanguage) {
+        this.primaryLanguage = primaryLanguage;
     }
 
     public String getRemoteUrl() {

@@ -6,6 +6,7 @@ import com.bcosmos.backend.repository.RepositoryIgnoreRules;
 import com.bcosmos.backend.repository.SafePathValidator;
 import com.bcosmos.core.java.JavaAdapter;
 import com.bcosmos.core.language.LanguageAdapter;
+import com.bcosmos.core.typescript.TypeScriptAdapter;
 import java.time.Clock;
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -17,8 +18,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 /**
  * Wires the language-independent pipeline to the language adapter (ADR 0012) and to the configured limits.
  *
- * <p>{@link JavaAdapter} is the only adapter of phase 1. Adding a second language means adding one bean here; no
- * other backend class knows about Java (spec v2 section 3.1).</p>
+ * <p>{@link JavaAdapter} was the initial adapter of phase 1; {@link TypeScriptAdapter} was added in phase 10 (spec v2 section 3.1 &amp; 12).</p>
  */
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(BcosmosProperties.class)
@@ -30,6 +30,11 @@ public class AnalysisConfiguration {
     @Bean
     public JavaAdapter javaAdapter() {
         return new JavaAdapter();
+    }
+
+    @Bean
+    public TypeScriptAdapter typeScriptAdapter() {
+        return new TypeScriptAdapter();
     }
 
     @Bean

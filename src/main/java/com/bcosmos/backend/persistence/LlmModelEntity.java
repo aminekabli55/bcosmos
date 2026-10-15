@@ -38,6 +38,14 @@ public class LlmModelEntity {
     @Column(name = "kind", nullable = false, length = 20)
     private LlmModelKind kind;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "capability", nullable = false, length = 20)
+    private LlmModelCapability capability;
+
+    /** Vector width requested from the provider; null for a chat model. */
+    @Column(name = "embedding_dimension")
+    private Integer embeddingDimension;
+
     @Column(name = "enabled", nullable = false)
     private boolean enabled;
 
@@ -66,12 +74,14 @@ public class LlmModelEntity {
     protected LlmModelEntity() {
     }
 
-    public LlmModelEntity(LlmProvider provider, String modelName, LlmModelKind kind, boolean enabled,
-            boolean defaultModel, int contextWindow, BigDecimal costPer1kIn, BigDecimal costPer1kOut, String notes,
-            Instant now) {
+    public LlmModelEntity(LlmProvider provider, String modelName, LlmModelKind kind,
+            LlmModelCapability capability, Integer embeddingDimension, boolean enabled, boolean defaultModel,
+            int contextWindow, BigDecimal costPer1kIn, BigDecimal costPer1kOut, String notes, Instant now) {
         this.provider = Objects.requireNonNull(provider, "provider");
         this.modelName = Objects.requireNonNull(modelName, "modelName");
         this.kind = Objects.requireNonNull(kind, "kind");
+        this.capability = capability == null ? LlmModelCapability.CHAT : capability;
+        this.embeddingDimension = embeddingDimension;
         this.enabled = enabled;
         this.defaultModel = defaultModel;
         this.contextWindow = contextWindow;
@@ -120,6 +130,14 @@ public class LlmModelEntity {
 
     public LlmModelKind getKind() {
         return kind;
+    }
+
+    public LlmModelCapability getCapability() {
+        return capability;
+    }
+
+    public Integer getEmbeddingDimension() {
+        return embeddingDimension;
     }
 
     public boolean isEnabled() {

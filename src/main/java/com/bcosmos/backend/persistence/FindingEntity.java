@@ -180,6 +180,16 @@ public class FindingEntity {
         return triageStatus;
     }
 
+    /**
+     * Records a triage decision.
+     *
+     * <p>Phase 3's review endpoint moves a finding's triage state, because accepting or rejecting a suggestion is
+     * exactly the decision the state tracks (spec v2 sections 8 and 9). Nothing else writes this field.</p>
+     */
+    public void triage(TriageStatus decision) {
+        this.triageStatus = Objects.requireNonNull(decision, "decision");
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }

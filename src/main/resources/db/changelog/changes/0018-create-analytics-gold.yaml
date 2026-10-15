@@ -1,0 +1,647 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0018-create-analytics-gold
+      author: bcosmos
+      comment: >
+        The gold tables of Phase 5 (spec v2 sections 4.1 and 6.1). Spark writes them and the backend only ever reads
+        them: the REST API never talks to Spark (spec section 6.1, `load_gold`). Every table carries dataset_version
+        and generated_at, so a chart can say which snapshot it shows, and a later run replaces the rows of the tables
+        as a whole snapshot while an older dataset_version stays readable until it is pruned. `gold_run` is the
+        snapshot header the Analytics screen shows; `agg_finding` is the drill-down layer, capped by `load_gold` to
+        the most recent commits per repository so Postgres does not become a second copy of the whole event stream.
+      changes:
+        - createTable:
+            tableName: gold_run
+            remarks: One row per completed Spark gold load; the snapshot header of every chart.
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_gold_run
+              - column:
+                  name: dataset_version
+                  type: varchar(80)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: generated_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: source
+                  type: varchar(40)
+                  remarks: Who produced the snapshot, e.g. spark.
+                  constraints:
+                    nullable: false
+              - column:
+                  name: repository_count
+                  type: integer
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: triple_count
+                  type: bigint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: notes
+                  type: varchar(500)
+        - addUniqueConstraint:
+            tableName: gold_run
+            columnNames: dataset_version, source
+            constraintName: uq_gold_run_version_source
+
+        - createTable:
+            tableName: agg_pipeline_stat
+            remarks: Named counts about the run itself (rows kept, rows rejected and why, commits observed).
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_agg_pipeline_stat
+              - column:
+                  name: dataset_version
+                  type: varchar(80)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: generated_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: stat_key
+                  type: varchar(80)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: stat_value
+                  type: bigint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: agg_pipeline_stat
+            columnNames: dataset_version, stat_key
+            constraintName: uq_agg_pipeline_stat_key
+
+        - createTable:
+            tableName: agg_rule_distribution
+            remarks: Findings per rule and severity per repository, per KLOC (spec v2 section 6.1).
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_agg_rule_distribution
+              - column:
+                  name: dataset_version
+                  type: varchar(80)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: generated_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: repository_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: rule_id
+                  type: varchar(200)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: severity
+                  type: varchar(20)
+              - column:
+                  name: findings
+                  type: bigint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: files_affected
+                  type: integer
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: measured_lines
+                  type: bigint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: findings_per_kloc
+                  type: double
+                  remarks: Null when the repository reported no line count at all, never zero.
+              - column:
+                  name: parse_failures
+                  type: bigint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: agg_rule_distribution
+            columnNames: dataset_version, repository_id, rule_id, severity
+            constraintName: uq_agg_rule_distribution_key
+        - createIndex:
+            tableName: agg_rule_distribution
+            indexName: idx_agg_rule_distribution_version_findings
+            columns:
+              - column:
+                  name: dataset_version
+              - column:
+                  name: findings
+                  descending: true
+
+        - createTable:
+            tableName: agg_quality_trend
+            remarks: >
+              Finding density per repository per UTC week of the analysis window (spec v2 section 6.1). The time axis
+              is the moment a revision was analysed, because the findings event carries no commit timestamp.
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_agg_quality_trend
+              - column:
+                  name: dataset_version
+                  type: varchar(80)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: generated_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: repository_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: bucket_start
+                  type: date
+                  remarks: Start (Monday, UTC) of the week the revisions were analysed in.
+                  constraints:
+                    nullable: false
+              - column:
+                  name: findings
+                  type: bigint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: files_analysed
+                  type: bigint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: measured_lines
+                  type: bigint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: density_per_kloc
+                  type: double
+              - column:
+                  name: parse_failures
+                  type: bigint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: agg_quality_trend
+            columnNames: dataset_version, repository_id, bucket_start
+            constraintName: uq_agg_quality_trend_key
+
+        - createTable:
+            tableName: agg_time_to_fix
+            remarks: >
+              Per-rule histogram of commits-until-resolved, measured as first-parent distance between the commit where a
+              fingerprint first appears and the commit where it disappears (spec v2 section 6.1). A null
+              commits_until_resolved means no distance could be computed at all (no parent chain for that commit).
+              When the introduction sits at the root of the mined window the distance is a LOWER BOUND: it is stored
+              as a value and flagged by observed_introductions < resolved_pairs, so a median must exclude those rows
+              rather than quietly include a truncated one.
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_agg_time_to_fix
+              - column:
+                  name: dataset_version
+                  type: varchar(80)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: generated_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: repository_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: rule_id
+                  type: varchar(200)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: commits_until_resolved
+                  type: integer
+              - column:
+                  name: resolved_pairs
+                  type: bigint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: observed_introductions
+                  type: bigint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: agg_time_to_fix
+            columnNames: dataset_version, repository_id, rule_id, commits_until_resolved
+            constraintName: uq_agg_time_to_fix_key
+
+        - createTable:
+            tableName: agg_hotspot
+            remarks: >
+              Ranked files per repository with every component of the triage heuristic (spec v2 section 6.3). Raw
+              value, percentile rank and weighted contribution of each measured component are stored separately, so the
+              screen can always show how a score was reached. dependency_measured is false and weight_sum_measured
+              records the divisor actually used until Phase 8 measures dependency impact.
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_agg_hotspot
+              - column:
+                  name: dataset_version
+                  type: varchar(80)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: generated_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: repository_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: file_path
+                  type: varchar(1000)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: score
+                  type: double
+                  constraints:
+                    nullable: false
+              - column:
+                  name: rank_in_repository
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: churn
+                  type: bigint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: churn_score
+                  type: double
+              - column:
+                  name: churn_contribution
+                  type: double
+              - column:
+                  name: complexity_proxy
+                  type: bigint
+                  remarks: Distinct rules the file triggered; a proxy, not a parser metric.
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: complexity_score
+                  type: double
+              - column:
+                  name: complexity_contribution
+                  type: double
+              - column:
+                  name: open_findings
+                  type: bigint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: open_findings_score
+                  type: double
+              - column:
+                  name: open_findings_contribution
+                  type: double
+              - column:
+                  name: dependency_measured
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: weight_sum_measured
+                  type: double
+                  constraints:
+                    nullable: false
+              - column:
+                  name: latest_commit_hash
+                  type: varchar(64)
+              - column:
+                  name: weights
+                  type: varchar(200)
+        - addUniqueConstraint:
+            tableName: agg_hotspot
+            columnNames: dataset_version, repository_id, file_path
+            constraintName: uq_agg_hotspot_key
+        - createIndex:
+            tableName: agg_hotspot
+            indexName: idx_agg_hotspot_version_repo_rank
+            columns:
+              - column:
+                  name: dataset_version
+              - column:
+                  name: repository_id
+              - column:
+                  name: rank_in_repository
+
+        - createTable:
+            tableName: agg_finding
+            remarks: >
+              The drill-down layer: the findings behind every aggregate, at (repository, commit, file, side, rule,
+              fingerprint) grain. Every chart in the Analytics screen filters this table by the same dimension it
+              grouped on, which is what makes "every chart drills down to records" true rather than decorative.
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_agg_finding
+              - column:
+                  name: dataset_version
+                  type: varchar(80)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: generated_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: repository_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: commit_hash
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: file_path
+                  type: varchar(1000)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: side
+                  type: varchar(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: rule_id
+                  type: varchar(200)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: severity
+                  type: varchar(20)
+              - column:
+                  name: symbol
+                  type: varchar(1000)
+              - column:
+                  name: fingerprint
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: start_line
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: end_line
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: line_count
+                  type: integer
+              - column:
+                  name: occurred_at
+                  type: timestamp with time zone
+                  remarks: When the revision was analysed; the time axis of the trend chart.
+              - column:
+                  name: snippet
+                  type: varchar(600)
+        - createIndex:
+            tableName: agg_finding
+            indexName: idx_agg_finding_version_rule
+            columns:
+              - column:
+                  name: dataset_version
+              - column:
+                  name: rule_id
+        - createIndex:
+            tableName: agg_finding
+            indexName: idx_agg_finding_version_file
+            columns:
+              - column:
+                  name: dataset_version
+              - column:
+                  name: repository_id
+              - column:
+                  name: file_path
+
+        - createTable:
+            tableName: agg_dataset
+            remarks: The dataset card's numbers per split (spec v2 section 6.2), written by the same gold load.
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_agg_dataset
+              - column:
+                  name: dataset_version
+                  type: varchar(80)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: generated_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: split
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: triples
+                  type: bigint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: repositories
+                  type: integer
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: rules
+                  type: integer
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: snippet_changed
+                  type: bigint
+                  remarks: Triples whose paired snippets actually differ; the rest are resolved findings with no visible code change in the snippet.
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: introductions_unobserved
+                  type: bigint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: max_changed_lines
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: filters
+                  type: varchar(500)
+        - addUniqueConstraint:
+            tableName: agg_dataset
+            columnNames: dataset_version, split
+            constraintName: uq_agg_dataset_key
+
+        - createTable:
+            tableName: agg_dataset_repository
+            remarks: >
+              Which repository is in which split, with the licence reported for it (spec v2 section 7.5). The licence
+              comes from repository.license_spdx and is null when nothing detected one: the dataset card then says
+              "unknown", which is the only honest value.
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_agg_dataset_repository
+              - column:
+                  name: dataset_version
+                  type: varchar(80)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: generated_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: split
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: repository_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: repository_name
+                  type: varchar(200)
+              - column:
+                  name: license_spdx
+                  type: varchar(80)
+              - column:
+                  name: triples
+                  type: bigint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: agg_dataset_repository
+            columnNames: dataset_version, repository_id
+            constraintName: uq_agg_dataset_repository_key
+      rollback:
+        - dropTable:
+            tableName: agg_dataset_repository
+        - dropTable:
+            tableName: agg_dataset
+        - dropTable:
+            tableName: agg_finding
+        - dropTable:
+            tableName: agg_hotspot
+        - dropTable:
+            tableName: agg_time_to_fix
+        - dropTable:
+            tableName: agg_quality_trend
+        - dropTable:
+            tableName: agg_rule_distribution
+        - dropTable:
+            tableName: agg_pipeline_stat
+        - dropTable:
+            tableName: gold_run

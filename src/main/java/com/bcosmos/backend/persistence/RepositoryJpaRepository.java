@@ -10,5 +10,8 @@ public interface RepositoryJpaRepository extends JpaRepository<RepositoryEntity,
 
     Optional<RepositoryEntity> findByCanonicalLocalPath(String canonicalLocalPath);
 
+    /** A mined repository is identified by its remote URL: it has no local path of its own (changelog 0016). */
+    Optional<RepositoryEntity> findByRemoteUrl(String remoteUrl);
+
     Page<RepositoryEntity> findAllByOrderByCreatedAtDesc(Pageable pageable);
 }

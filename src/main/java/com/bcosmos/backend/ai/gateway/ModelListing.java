@@ -1,5 +1,6 @@
 package com.bcosmos.backend.ai.gateway;
 
+import com.bcosmos.backend.persistence.LlmModelCapability;
 import com.bcosmos.backend.persistence.LlmModelKind;
 import com.bcosmos.backend.persistence.LlmProvider;
 import java.math.BigDecimal;
@@ -20,6 +21,8 @@ public record ModelListing(
         LlmProvider provider,
         String modelName,
         LlmModelKind kind,
+        LlmModelCapability capability,
+        Integer embeddingDimension,
         boolean enabled,
         boolean defaultModel,
         int contextWindow,
@@ -32,6 +35,7 @@ public record ModelListing(
 
     /** The call-time view of this row. */
     public ModelRef toRef() {
-        return new ModelRef(id, provider, modelName, kind, contextWindow, costPer1kIn, costPer1kOut);
+        return new ModelRef(id, provider, modelName, kind, capability, embeddingDimension, contextWindow,
+                costPer1kIn, costPer1kOut);
     }
 }

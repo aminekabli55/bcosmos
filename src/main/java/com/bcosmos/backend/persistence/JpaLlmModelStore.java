@@ -25,8 +25,15 @@ public class JpaLlmModelStore implements LlmModelStore {
     }
 
     @Override
-    public Optional<LlmModelRecord> findDefault() {
-        return models.findByDefaultModelTrue().map(JpaLlmModelStore::toRecord);
+    public Optional<LlmModelRecord> findDefault(LlmModelCapability capability) {
+        return models.findByCapabilityAndDefaultModelTrue(capability).map(JpaLlmModelStore::toRecord);
+    }
+
+    @Override
+    public List<LlmModelRecord> findByCapability(LlmModelCapability capability) {
+        return models.findByCapabilityOrderByProviderAscModelNameAsc(capability).stream()
+                .map(JpaLlmModelStore::toRecord)
+                .toList();
     }
 
     @Override
@@ -36,6 +43,8 @@ public class JpaLlmModelStore implements LlmModelStore {
                     model.provider(),
                     model.modelName(),
                     model.kind(),
+                    model.capability(),
+                    model.embeddingDimension(),
                     model.enabled(),
                     model.defaultModel(),
                     model.contextWindow(),
@@ -57,6 +66,8 @@ public class JpaLlmModelStore implements LlmModelStore {
                 entity.getProvider(),
                 entity.getModelName(),
                 entity.getKind(),
+                entity.getCapability(),
+                entity.getEmbeddingDimension(),
                 entity.isEnabled(),
                 entity.isDefaultModel(),
                 entity.getContextWindow(),

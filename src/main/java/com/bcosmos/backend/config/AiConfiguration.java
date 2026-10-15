@@ -1,5 +1,6 @@
 package com.bcosmos.backend.config;
 
+import com.bcosmos.backend.ai.gateway.AiEnablement;
 import com.bcosmos.backend.ai.gateway.GeminiAdapter;
 import com.bcosmos.backend.ai.gateway.LlmClient;
 import com.bcosmos.backend.ai.gateway.LlmException;
@@ -93,8 +94,9 @@ public class AiConfiguration {
      * <p>Returned as {@link LlmClient}, so nothing outside this package can reach a provider directly.</p>
      */
     @Bean
-    public LlmClient llmClient(AiProperties properties, ModelRegistry models, List<LlmProviderAdapter> adapters,
-            UsageRecorder usage, SecretRedactor redactor, ObjectMapper json, Retry llmRetry, Clock clock) {
-        return new LlmGateway(properties, models, adapters, usage, redactor, json, llmRetry, clock);
+    public LlmClient llmClient(AiProperties properties, AiEnablement enablement, ModelRegistry models,
+            List<LlmProviderAdapter> adapters, UsageRecorder usage, SecretRedactor redactor, ObjectMapper json,
+            Retry llmRetry, Clock clock) {
+        return new LlmGateway(properties, enablement, models, adapters, usage, redactor, json, llmRetry, clock);
     }
 }

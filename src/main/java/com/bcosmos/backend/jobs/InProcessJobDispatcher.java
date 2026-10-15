@@ -6,6 +6,7 @@ import java.util.concurrent.RejectedExecutionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -17,10 +18,12 @@ import org.springframework.stereotype.Component;
  * pending forever.</p>
  *
  * <p>It is triggered by {@link AnalysisRunRequested}, not called directly by {@link AnalysisRunService}: the run
- * service decides <em>that</em> work exists, this class decides <em>how</em> it is executed. Phase 4 swaps this
- * listener for a Kafka publisher without touching the run service.</p>
+ * service decides <em>that</em> work exists, this class decides <em>how</em> it is executed. Phase 4 added
+ * {@link KafkaJobDispatcher} as the other implementation of that seam; exactly one of the two exists, chosen by
+ * {@code bcosmos.kafka.enabled}, and the run service is untouched by the choice.</p>
  */
 @Component
+@ConditionalOnProperty(name = "bcosmos.kafka.enabled", havingValue = "false", matchIfMissing = true)
 public class InProcessJobDispatcher implements JobDispatcher {
 
     private static final Logger log = LoggerFactory.getLogger(InProcessJobDispatcher.class);

@@ -16,6 +16,8 @@ public record LlmModelRecord(
         LlmProvider provider,
         String modelName,
         LlmModelKind kind,
+        LlmModelCapability capability,
+        Integer embeddingDimension,
         boolean enabled,
         boolean defaultModel,
         int contextWindow,
@@ -29,10 +31,16 @@ public record LlmModelRecord(
         Objects.requireNonNull(provider, "provider");
         Objects.requireNonNull(modelName, "modelName");
         Objects.requireNonNull(kind, "kind");
+        capability = capability == null ? LlmModelCapability.CHAT : capability;
         Objects.requireNonNull(costPer1kIn, "costPer1kIn");
         Objects.requireNonNull(costPer1kOut, "costPer1kOut");
         Objects.requireNonNull(createdAt, "createdAt");
         Objects.requireNonNull(updatedAt, "updatedAt");
+    }
+
+    /** True for a row the {@code embed} path may use. */
+    public boolean embeddingCapable() {
+        return capability == LlmModelCapability.EMBEDDING;
     }
 
     /** This row with an edit applied; a {@code null} argument leaves that field alone. */
@@ -43,6 +51,8 @@ public record LlmModelRecord(
                 provider,
                 modelName,
                 kind,
+                capability,
+                embeddingDimension,
                 newEnabled == null ? enabled : newEnabled,
                 newDefaultModel == null ? defaultModel : newDefaultModel,
                 newContextWindow == null ? contextWindow : newContextWindow,

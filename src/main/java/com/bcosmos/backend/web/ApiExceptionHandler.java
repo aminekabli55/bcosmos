@@ -6,11 +6,15 @@ import com.bcosmos.backend.ai.gateway.LlmDisabledException;
 import com.bcosmos.backend.ai.gateway.LlmProviderException;
 import com.bcosmos.backend.ai.gateway.LlmTimeoutException;
 import com.bcosmos.backend.ai.gateway.MissingApiKeyException;
+import com.bcosmos.backend.ai.gateway.ModelCapabilityException;
 import com.bcosmos.backend.ai.gateway.ModelDisabledException;
 import com.bcosmos.backend.ai.gateway.ModelNotConfiguredException;
 import com.bcosmos.backend.ai.gateway.ModelNotFoundException;
 import com.bcosmos.backend.ai.gateway.ProviderNotConfiguredException;
 import com.bcosmos.backend.ai.gateway.StructuredOutputException;
+import com.bcosmos.backend.ai.rag.EmbeddingDimensionException;
+import com.bcosmos.backend.ai.suggestion.SuggestionNotPossibleException;
+import com.bcosmos.backend.ai.suggestion.SuggestionNotFoundException;
 import com.bcosmos.backend.jobs.AnalysisRunNotFoundException;
 import com.bcosmos.backend.repository.DuplicateRepositoryException;
 import com.bcosmos.backend.repository.InvalidRepositoryPathException;
@@ -53,6 +57,11 @@ public class ApiExceptionHandler {
         return problem(HttpStatus.NOT_FOUND, "Repository not found", exception.getMessage());
     }
 
+    @ExceptionHandler(com.bcosmos.backend.repository.MinedRepositoryAnalysisNotSupportedException.class)
+    public ProblemDetail handleMinedRepositoryAnalysis(com.bcosmos.backend.repository.MinedRepositoryAnalysisNotSupportedException exception) {
+        return problem(HttpStatus.UNPROCESSABLE_ENTITY, "Analysis not supported for mined repository", exception.getMessage());
+    }
+
     @ExceptionHandler(AnalysisRunNotFoundException.class)
     public ProblemDetail handleRunNotFound(AnalysisRunNotFoundException exception) {
         return problem(HttpStatus.NOT_FOUND, "Analysis run not found", exception.getMessage());
@@ -66,6 +75,29 @@ public class ApiExceptionHandler {
     @ExceptionHandler(ModelNotFoundException.class)
     public ProblemDetail handleModelNotFound(ModelNotFoundException exception) {
         return problem(HttpStatus.NOT_FOUND, "Model not found", exception.getMessage());
+    }
+
+    @ExceptionHandler(SuggestionNotFoundException.class)
+    public ProblemDetail handleSuggestionNotFound(SuggestionNotFoundException exception) {
+        return problem(HttpStatus.NOT_FOUND, "Suggestion not found", exception.getMessage());
+    }
+
+    /**
+     * The run cannot carry a suggestion: the stored source is missing (an analysis from before Phase 3) or the file
+     * never parsed. The message names the way out - re-run the analysis.
+     */
+    @ExceptionHandler(SuggestionNotPossibleException.class)
+    public ProblemDetail handleSuggestionNotPossible(SuggestionNotPossibleException exception) {
+        return problem(HttpStatus.CONFLICT, "Suggestion not possible", exception.getMessage());
+    }
+
+    /**
+     * The configured vector width and the embedding model disagree. It is a configuration error, and saying so is
+     * better than an empty retrieval result that looks like "nothing similar in this repository".
+     */
+    @ExceptionHandler(EmbeddingDimensionException.class)
+    public ProblemDetail handleEmbeddingDimension(EmbeddingDimensionException exception) {
+        return problem(HttpStatus.CONFLICT, "Embedding index not usable", exception.getMessage());
     }
 
     /** The AI layer is switched off: nothing was sent anywhere, and the request can be repeated once it is on. */
@@ -82,6 +114,12 @@ public class ApiExceptionHandler {
             ProviderNotConfiguredException.class})
     public ProblemDetail handleModelNotUsable(RuntimeException exception) {
         return problem(HttpStatus.CONFLICT, "Model not usable", exception.getMessage());
+    }
+
+    /** The request named a model that cannot do what it asked: an embedding model for chat, or the other way round. */
+    @ExceptionHandler(ModelCapabilityException.class)
+    public ProblemDetail handleModelCapability(ModelCapabilityException exception) {
+        return problem(HttpStatus.BAD_REQUEST, "Model cannot do this", exception.getMessage());
     }
 
     /** A registry edit that cannot be applied as asked (clearing the default, a negative price). */

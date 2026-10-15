@@ -63,12 +63,18 @@ public class GeminiAdapter implements LlmProviderAdapter {
         ObjectNode body = json.createObjectNode();
         ArrayNode requests = body.putArray("requests");
         for (String text : texts) {
-            requests.addObject()
-                    .put("model", "models/" + model.modelName())
-                    .putObject("content")
+            ObjectNode request = requests.addObject()
+                    .put("model", "models/" + model.modelName());
+            request.putObject("content")
                     .putArray("parts")
                     .addObject()
                     .put("text", text);
+            if (model.embeddingDimension() != null) {
+                // The registry's width, not the model's default: 3072-dimensional vectors do not fit the
+                // code_chunk.embedding column and cannot be indexed by pgvector's HNSW (spec 7.2).
+                request.putObject("embedContentConfig")
+                        .put("outputDimensionality", model.embeddingDimension());
+            }
         }
         try {
             String response = http.post()

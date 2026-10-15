@@ -6,6 +6,7 @@ import com.bcosmos.backend.persistence.AnalysisRunStatus;
 import com.bcosmos.backend.persistence.AnalysisStage;
 import com.bcosmos.backend.persistence.JobEntity;
 import com.bcosmos.backend.persistence.JobJpaRepository;
+import com.bcosmos.backend.persistence.FileRecordJpaRepository;
 import com.bcosmos.backend.persistence.FindingJpaRepository;
 import com.bcosmos.backend.persistence.JobStatus;
 import com.bcosmos.backend.persistence.JobType;
@@ -14,10 +15,13 @@ import com.bcosmos.backend.persistence.RepositoryJpaRepository;
 import com.bcosmos.backend.persistence.RepositoryStatus;
 import com.bcosmos.backend.persistence.SymbolJpaRepository;
 import com.bcosmos.backend.repository.DiscoveryResult;
+import com.bcosmos.backend.repository.PrimaryLanguageResolver;
 import com.bcosmos.backend.repository.RepositoryNotFoundException;
 import com.bcosmos.core.language.LanguageAdapter;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -55,17 +59,20 @@ public class AnalysisRunService {
     private final RepositoryJpaRepository repositories;
     private final FindingJpaRepository findings;
     private final SymbolJpaRepository symbols;
+    private final FileRecordJpaRepository fileRecords;
     private final ApplicationEventPublisher events;
     private final Clock clock;
 
     public AnalysisRunService(AnalysisRunJpaRepository runs, JobJpaRepository jobs,
             RepositoryJpaRepository repositories, FindingJpaRepository findings,
-            SymbolJpaRepository symbols, ApplicationEventPublisher events, Clock clock) {
+            SymbolJpaRepository symbols, FileRecordJpaRepository fileRecords, ApplicationEventPublisher events,
+            Clock clock) {
         this.runs = runs;
         this.jobs = jobs;
         this.repositories = repositories;
         this.findings = findings;
         this.symbols = symbols;
+        this.fileRecords = fileRecords;
         this.events = events;
         this.clock = clock;
     }
@@ -78,6 +85,9 @@ public class AnalysisRunService {
     public AnalysisRunEntity start(long repositoryId) {
         RepositoryEntity repository = repositories.findById(repositoryId)
                 .orElseThrow(() -> new RepositoryNotFoundException(repositoryId));
+        if (repository.getSourceType() == com.bcosmos.backend.persistence.RepositorySourceType.MINED) {
+            throw new com.bcosmos.backend.repository.MinedRepositoryAnalysisNotSupportedException(repositoryId);
+        }
         Instant now = clock.instant();
         AnalysisRunEntity run = runs.save(new AnalysisRunEntity(repository.getId(), AnalysisRunStatus.PENDING,
                 AnalysisStage.QUEUED, SCHEMA_VERSION, now));
@@ -155,6 +165,7 @@ public class AnalysisRunService {
             job.setFinishedAt(now);
         });
         updateRepositoryStatus(run.getRepositoryId(), RepositoryStatus.ANALYSED);
+        recordPrimaryLanguage(run);
     }
 
     /** Fails the run with a code and a summary the UI can show. */
@@ -197,6 +208,25 @@ public class AnalysisRunService {
             throw new RepositoryNotFoundException(repositoryId);
         }
         return runs.findByRepositoryIdOrderByCreatedAtDesc(repositoryId, pageable);
+    }
+
+    /**
+     * Records what the finished run says the repository is written in (ADR 0033). Registration cannot know it — it
+     * never reads the tree — so a repository was registered as Java and, after Phase 10, a TypeScript project kept
+     * showing "Java · L3" until its first run. Only a run that really saw files moves the value.
+     */
+    private void recordPrimaryLanguage(AnalysisRunEntity run) {
+        Map<String, Long> filesByLanguage = new LinkedHashMap<>();
+        for (Object[] row : fileRecords.countLanguagesByRunId(run.getId())) {
+            filesByLanguage.put((String) row[0], ((Number) row[1]).longValue());
+        }
+        repositories.findById(run.getRepositoryId()).ifPresent(repository -> {
+            String resolved = PrimaryLanguageResolver.resolve(repository.getPrimaryLanguage(), filesByLanguage);
+            if (!java.util.Objects.equals(resolved, repository.getPrimaryLanguage())) {
+                repository.setPrimaryLanguage(resolved);
+                repositories.save(repository);
+            }
+        });
     }
 
     private void updateRepositoryStatus(Long repositoryId, RepositoryStatus status) {

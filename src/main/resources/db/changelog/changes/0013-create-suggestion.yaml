@@ -1,0 +1,117 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0013-create-suggestion
+      author: bcosmos
+      comment: >
+        One AI answer for one finding (spec v2 sections 4.1 and 7.3). response_json keeps the whole structured answer
+        (summary, explanation, cited evidence, risks, tests, uncertainties) and validation_json the verdict the
+        PatchValidator computed, so a reviewed suggestion can be read back without calling a provider again.
+        status is the review decision, and reviewed_at says when a human made it. responses have to stay readable
+        after a model row is renamed, so model_id is nullable with ON DELETE SET NULL.
+      changes:
+        - createTable:
+            tableName: suggestion
+            remarks: One evidence-cited fix suggestion and its validation verdict
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: finding_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: model_id
+                  type: bigint
+              - column:
+                  name: prompt_version
+                  type: varchar(60)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: request_hash
+                  type: varchar(64)
+                  remarks: sha256 of the exact prompt bundle, so an identical request is recognizable.
+                  constraints:
+                    nullable: false
+              - column:
+                  name: response_json
+                  type: jsonb
+                  constraints:
+                    nullable: false
+              - column:
+                  name: diff
+                  type: text
+                  remarks: The proposed unified diff, duplicated out of response_json for the review screen.
+              - column:
+                  name: status
+                  type: varchar(20)
+                  remarks: PROPOSED, ACCEPTED, REJECTED or DEFERRED.
+                  constraints:
+                    nullable: false
+              - column:
+                  name: validation_json
+                  type: jsonb
+                  constraints:
+                    nullable: false
+              - column:
+                  name: retrieval_json
+                  type: jsonb
+                  remarks: >-
+                    What retrieval showed the model, so a stored suggestion can be reopened without calling a
+                    provider again or re-embedding the run. An addition to the spec's column list.
+                  constraints:
+                    nullable: false
+              - column:
+                  name: latency_ms
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tokens_in
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: tokens_out
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: reviewed_at
+                  type: timestamp with time zone
+        - addForeignKeyConstraint:
+            baseTableName: suggestion
+            baseColumnNames: finding_id
+            referencedTableName: finding
+            referencedColumnNames: id
+            constraintName: fk_suggestion_finding
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: suggestion
+            baseColumnNames: model_id
+            referencedTableName: llm_model
+            referencedColumnNames: id
+            constraintName: fk_suggestion_llm_model
+            onDelete: SET NULL
+        - createIndex:
+            tableName: suggestion
+            indexName: idx_suggestion_finding
+            columns:
+              - column:
+                  name: finding_id
+              - column:
+                  name: created_at
+      rollback:
+        - dropTable:
+            tableName: suggestion

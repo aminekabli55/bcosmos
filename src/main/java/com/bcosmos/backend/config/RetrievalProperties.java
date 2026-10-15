@@ -1,0 +1,41 @@
+package com.bcosmos.backend.config;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+
+/**
+ * How much code may be gathered around one finding, and how it is chunked (spec v2 section 7.2: "retrieval for a
+ * finding, bounded to a token budget").
+ *
+ * <p>Every limit is configuration rather than a constant, because the budget interacts with the chosen model's
+ * context window and with how much a free tier is willing to accept. The defaults are deliberately small: a
+ * suggestion prompt that does not fit is a provider error the user pays for.</p>
+ *
+ * @param embeddingDimension width of every stored vector; must equal the {@code code_chunk.embedding} column width
+ *                           and the {@code embedding_dimension} of the model in use, or the embedding is refused
+ * @param topK               how many semantically similar chunks retrieval adds on top of the enclosing symbol
+ * @param tokenBudget        estimated tokens of code one suggestion prompt may carry
+ * @param maxChunkChars      cap on one chunk's text; a longer symbol is truncated with a visible marker
+ * @param embedBatchSize     texts per embedding call, so one huge repository does not ask for one huge request
+ */
+@ConfigurationProperties(prefix = "bcosmos.retrieval")
+public record RetrievalProperties(
+        int embeddingDimension,
+        int topK,
+        int tokenBudget,
+        int maxChunkChars,
+        int embedBatchSize) {
+
+    private static final int DEFAULT_DIMENSION = 1536;
+    private static final int DEFAULT_TOP_K = 8;
+    private static final int DEFAULT_TOKEN_BUDGET = 6000;
+    private static final int DEFAULT_MAX_CHUNK_CHARS = 6000;
+    private static final int DEFAULT_EMBED_BATCH_SIZE = 16;
+
+    public RetrievalProperties {
+        embeddingDimension = embeddingDimension <= 0 ? DEFAULT_DIMENSION : embeddingDimension;
+        topK = topK <= 0 ? DEFAULT_TOP_K : topK;
+        tokenBudget = tokenBudget <= 0 ? DEFAULT_TOKEN_BUDGET : tokenBudget;
+        maxChunkChars = maxChunkChars <= 0 ? DEFAULT_MAX_CHUNK_CHARS : maxChunkChars;
+        embedBatchSize = embedBatchSize <= 0 ? DEFAULT_EMBED_BATCH_SIZE : embedBatchSize;
+    }
+}

@@ -27,3 +27,63 @@ databaseChangeLog:
   - include:
       file: changes/0009-create-llm-usage.yaml
       relativeToChangelogFile: true
+
+  # Phase 2 (AI gateway): settings that are editable from the browser.
+  - include:
+      file: changes/0010-create-app-setting.yaml
+      relativeToChangelogFile: true
+
+  # Phase 3 (RAG and suggestions): the analysed revision, its embedded chunks and the suggestions built on them.
+  - include:
+      file: changes/0011-create-file-content.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/0012-create-code-chunk.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/0013-create-suggestion.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/0014-add-model-capability.yaml
+      relativeToChangelogFile: true
+
+  # Phase 4 (Kafka pipeline): the commits the miner discovered, and the repository shape a mined repository needs
+  # (no local path of its own).
+  - include:
+      file: changes/0015-create-commit-record.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/0016-repository-nullable-local-path.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/0017-create-worker-file-result.yaml
+      relativeToChangelogFile: true
+
+  # Phase 5 (Spark lakehouse): the gold tables Spark loads and the backend only reads.
+  - include:
+      file: changes/0018-create-analytics-gold.yaml
+      relativeToChangelogFile: true
+
+  # Phase 6 (Evaluation harness): benchmark run metrics and leaderboard.
+  - include:
+      file: changes/0019-create-benchmark-run.yaml
+      relativeToChangelogFile: true
+
+  # Phase 7 (Fine-tuning): registered fine-tuned model and leaderboard evaluation row.
+  - include:
+      file: changes/0020-seed-finetuned-model-and-benchmark.yaml
+      relativeToChangelogFile: true
+
+  # Phase 8 (Graph & history): symbol relationships, call graph, and finding transitions.
+  - include:
+      file: changes/0021-create-relationship.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/0022-create-finding-transition.yaml
+      relativeToChangelogFile: true
+
+  # Phase 9 (Commit Review): three-layer evidence-based commit reviews.
+  - include:
+      file: changes/0023-create-commit-review.yaml
+      relativeToChangelogFile: true
+

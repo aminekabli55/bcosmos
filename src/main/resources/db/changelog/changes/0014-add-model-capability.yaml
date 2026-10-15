@@ -1,0 +1,150 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0014-add-model-capability
+      author: bcosmos
+      comment: >
+        Phase 3 embeddings need two facts the registry did not carry: what a model is for, and how wide its vectors
+        are. capability is an addition to the spec's column list (like is_default and updated_at before it): without
+        it, making an embedding model the default would silently break every chat call, and a chat model could be
+        handed to embed(). embedding_dimension records the width the provider was asked for, which the runtime
+        compares with bcosmos.retrieval.embedding-dimension and with the code_chunk.embedding column, so a mismatch
+        is refused with a clear message instead of failing inside Postgres. Existing rows are chat models.
+      changes:
+        - addColumn:
+            tableName: llm_model
+            columns:
+              - column:
+                  name: capability
+                  type: varchar(20)
+                  remarks: CHAT or EMBEDDING.
+                  defaultValue: CHAT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: embedding_dimension
+                  type: integer
+                  remarks: Vector width requested from the provider; null for a chat model.
+        # Raw SQL because Liquibase core has no addCheckConstraint change type; the constraint itself is worth the
+        # raw DDL: a chat model with a vector width, or an embedding model without one, is a corrupted registry row.
+        - sql:
+            sql: >-
+              ALTER TABLE llm_model ADD CONSTRAINT ck_llm_model_capability
+              CHECK ((capability = 'CHAT' AND embedding_dimension IS NULL)
+              OR (capability = 'EMBEDDING' AND embedding_dimension > 0))
+      rollback:
+        - sql:
+            sql: ALTER TABLE llm_model DROP CONSTRAINT IF EXISTS ck_llm_model_capability
+        - dropColumn:
+            tableName: llm_model
+            columnName: embedding_dimension
+        - dropColumn:
+            tableName: llm_model
+            columnName: capability
+
+  # The embedding models, disabled like every other seed row: sending code to a hosted provider is opt-in per model
+  # (spec v2 section 10). Both are asked for 1536 dimensions, which is the width of code_chunk.embedding and stays
+  # under pgvector's 2000-dimension limit for an HNSW index on a plain vector column (spec 7.2, ADR 0002).
+  - changeSet:
+      id: 0014-seed-embedding-models
+      author: bcosmos
+      comment: >
+        gemini-embedding-2 is Google's current embedding model (gemini-embedding-001 stays available until its
+        announced shutdown, but it is the older one); its default output is 3072 dimensions, so the adapter asks for
+        1536 via embedContentConfig.outputDimensionality. text-embedding-3-small is natively 1536. A vector is only
+        comparable with vectors from the same model and width, so switching the embedding model is a re-embedding
+        operation, not a settings toggle.
+      changes:
+        - insert:
+            tableName: llm_model
+            columns:
+              - column:
+                  name: provider
+                  value: GEMINI
+              - column:
+                  name: model_name
+                  value: gemini-embedding-2
+              - column:
+                  name: kind
+                  value: HOSTED
+              - column:
+                  name: capability
+                  value: EMBEDDING
+              - column:
+                  name: embedding_dimension
+                  valueNumeric: 1536
+              - column:
+                  name: enabled
+                  valueBoolean: false
+              - column:
+                  name: is_default
+                  valueBoolean: true
+              - column:
+                  name: context_window
+                  valueNumeric: 8192
+              - column:
+                  name: cost_per_1k_in
+                  valueNumeric: 0.000150
+              - column:
+                  name: cost_per_1k_out
+                  valueNumeric: 0
+              - column:
+                  name: notes
+                  value: >-
+                    Seeded embedding model. Enable it and set GEMINI_API_KEY to index code chunks. Asked for 1536
+                    dimensions because that is the width of code_chunk.embedding. Check the current price before
+                    relying on the estimate.
+              - column:
+                  name: created_at
+                  valueComputed: now()
+              - column:
+                  name: updated_at
+                  valueComputed: now()
+        - insert:
+            tableName: llm_model
+            columns:
+              - column:
+                  name: provider
+                  value: OPENAI_COMPATIBLE
+              - column:
+                  name: model_name
+                  value: text-embedding-3-small
+              - column:
+                  name: kind
+                  value: HOSTED
+              - column:
+                  name: capability
+                  value: EMBEDDING
+              - column:
+                  name: embedding_dimension
+                  valueNumeric: 1536
+              - column:
+                  name: enabled
+                  valueBoolean: false
+              - column:
+                  name: is_default
+                  valueBoolean: false
+              - column:
+                  name: context_window
+                  valueNumeric: 8191
+              - column:
+                  name: cost_per_1k_in
+                  valueNumeric: 0.000020
+              - column:
+                  name: cost_per_1k_out
+                  valueNumeric: 0
+              - column:
+                  name: notes
+                  value: >-
+                    Seeded second embedding model, so retrieval can be compared across providers. Set
+                    OPENAI_API_KEY, or point bcosmos.ai.providers.openai-compatible.base-url at any
+                    OpenAI-compatible endpoint that serves embeddings.
+              - column:
+                  name: created_at
+                  valueComputed: now()
+              - column:
+                  name: updated_at
+                  valueComputed: now()
+      rollback:
+        - delete:
+            tableName: llm_model
+            where: capability = 'EMBEDDING'

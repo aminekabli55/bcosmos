@@ -1,6 +1,7 @@
 package com.bcosmos.backend.web.dto;
 
 import com.bcosmos.backend.ai.gateway.ModelListing;
+import com.bcosmos.backend.persistence.LlmModelCapability;
 import com.bcosmos.backend.persistence.LlmModelKind;
 import com.bcosmos.backend.persistence.LlmProvider;
 import java.math.BigDecimal;
@@ -17,6 +18,8 @@ public record ModelResponse(
         LlmProvider provider,
         String modelName,
         LlmModelKind kind,
+        LlmModelCapability capability,
+        Integer embeddingDimension,
         boolean enabled,
         boolean defaultModel,
         int contextWindow,
@@ -33,6 +36,8 @@ public record ModelResponse(
                 listing.provider(),
                 listing.modelName(),
                 listing.kind(),
+                listing.capability(),
+                listing.embeddingDimension(),
                 listing.enabled(),
                 listing.defaultModel(),
                 listing.contextWindow(),

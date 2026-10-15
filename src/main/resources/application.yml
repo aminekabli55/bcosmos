@@ -10,6 +10,17 @@ spring:
   liquibase:
     enabled: true
     change-log: classpath:db/changelog/db.changelog-master.yaml
+    # One width for every vector in the database: the code_chunk.embedding column and the HNSW index are created
+    # with this value, and bcosmos.retrieval.embedding-dimension must stay equal to it (the key name is the
+    # changelog parameter name, so it is case-sensitive).
+    parameters:
+      embeddingDimension: ${BCOSMOS_EMBEDDING_DIMENSION:1536}
+  kafka:
+    # Shared by the producer and the consumer; the pipeline itself is off unless bcosmos.kafka.enabled is true.
+    bootstrap-servers: ${BCOSMOS_KAFKA_BOOTSTRAP:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
   datasource:
     hikari:
       pool-name: bcosmos-backend
@@ -24,11 +35,27 @@ management:
         include: health,info
 
 bcosmos:
+  # The Kafka pipeline (Phase 4). Off means analyses run in-process and no broker is needed (ADR 0003).
+  kafka:
+    enabled: ${BCOSMOS_KAFKA_ENABLED:false}
+    partitions: ${BCOSMOS_KAFKA_PARTITIONS:3}
+    replicas: ${BCOSMOS_KAFKA_REPLICAS:1}
+  # What may be ingested into the corpus. The allowlist is enforced at ingest time, before an event exists.
+  corpus:
+    allowed-hosts: ${BCOSMOS_CORPUS_ALLOWED_HOSTS:github.com}
+    commit-window: ${BCOSMOS_CORPUS_COMMIT_WINDOW:200}
   repository:
     limits:
       max-files: ${BCOSMOS_MAX_FILES:20000}
       max-file-size-bytes: ${BCOSMOS_MAX_FILE_SIZE_BYTES:2000000}
     ignored-directories: []
+  # Retrieval budget and chunking limits for Phase 3 (spec v2 section 7.2).
+  retrieval:
+    embedding-dimension: ${BCOSMOS_EMBEDDING_DIMENSION:1536}
+    top-k: ${BCOSMOS_RETRIEVAL_TOP_K:8}
+    token-budget: ${BCOSMOS_RETRIEVAL_TOKEN_BUDGET:6000}
+    max-chunk-chars: ${BCOSMOS_RETRIEVAL_MAX_CHUNK_CHARS:6000}
+    embed-batch-size: ${BCOSMOS_RETRIEVAL_EMBED_BATCH_SIZE:16}
   ai:
     enabled: ${BCOSMOS_AI_ENABLED:false}
     timeout: ${BCOSMOS_AI_TIMEOUT:30s}

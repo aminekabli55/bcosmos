@@ -1,11 +1,13 @@
 package com.bcosmos.backend.ai.gateway;
 
+import static com.bcosmos.backend.ai.gateway.AiTestSupport.embeddingModel;
 import static com.bcosmos.backend.ai.gateway.AiTestSupport.model;
 import static com.bcosmos.backend.ai.gateway.AiTestSupport.properties;
 import static com.bcosmos.backend.ai.gateway.AiTestSupport.propertiesWithoutKeys;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.bcosmos.backend.persistence.LlmModelCapability;
 import com.bcosmos.backend.persistence.LlmProvider;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -18,7 +20,9 @@ class ModelRegistryTest {
     private final AiTestSupport.FakeModelStore store = new AiTestSupport.FakeModelStore(
             model(1, LlmProvider.GEMINI, "gemini-2.5-flash", true, true),
             model(2, LlmProvider.OPENAI_COMPATIBLE, "gpt-4o-mini", false, false),
-            model(3, LlmProvider.GEMINI, "gemini-2.5-pro", false, false));
+            model(3, LlmProvider.GEMINI, "gemini-2.5-pro", false, false),
+            embeddingModel(4, LlmProvider.GEMINI, "gemini-embedding-2", true, true, 1536),
+            embeddingModel(5, LlmProvider.OPENAI_COMPATIBLE, "text-embedding-3-small", false, false, 1536));
 
     private final ProviderCredentials credentials = new ProviderCredentials(
             properties(true, "http://localhost:1", "http://localhost:1", Duration.ofSeconds(5), 2));
@@ -69,7 +73,7 @@ class ModelRegistryTest {
         ModelListing promoted = registry.edit(2, new ModelEdit(true, true, null, null, null, null));
 
         assertThat(promoted.defaultModel()).isTrue();
-        assertThat(store.defaults()).extracting("modelName").containsExactly("gpt-4o-mini");
+        assertThat(store.defaults(LlmModelCapability.CHAT)).extracting("modelName").containsExactly("gpt-4o-mini");
         assertThat(registry.requireUsable(null).modelName()).isEqualTo("gpt-4o-mini");
     }
 
@@ -103,9 +107,43 @@ class ModelRegistryTest {
     }
 
     @Test
+    void refusesToChatWithAnEmbeddingModelAndToEmbedWithAChatModel() {
+        assertThatThrownBy(() -> registry.requireUsable(4L))
+                .isInstanceOf(ModelCapabilityException.class)
+                .hasMessageContaining("EMBEDDING model")
+                .hasMessageContaining("gemini-embedding-2");
+        assertThatThrownBy(() -> registry.requireEmbeddingModel(1L))
+                .isInstanceOf(ModelCapabilityException.class)
+                .hasMessageContaining("is a CHAT model");
+    }
+
+    @Test
+    void resolvesTheDefaultEmbeddingModelWithoutTouchingTheChatDefault() {
+        assertThat(registry.requireEmbeddingModel(null).modelName()).isEqualTo("gemini-embedding-2");
+        assertThat(registry.requireEmbeddingModel(null).embeddingDimension()).isEqualTo(1536);
+        assertThat(registry.requireUsable(null).modelName()).isEqualTo("gemini-2.5-flash");
+    }
+
+    @Test
+    void refusesAnEmbeddingModelThatIsNotEnabled() {
+        assertThatThrownBy(() -> registry.requireEmbeddingModel(5L))
+                .isInstanceOf(ModelDisabledException.class)
+                .hasMessageContaining("text-embedding-3-small");
+    }
+
+    @Test
+    void promotingAnEmbeddingModelLeavesTheChatDefaultAlone() {
+        ModelListing promoted = registry.edit(5, new ModelEdit(true, true, null, null, null, null));
+
+        assertThat(promoted.defaultModel()).isTrue();
+        assertThat(registry.requireUsable(null).modelName()).isEqualTo("gemini-2.5-flash");
+        assertThat(registry.requireEmbeddingModel(null).modelName()).isEqualTo("text-embedding-3-small");
+    }
+
+    @Test
     void resolvesTheProviderOfAModel() {
         assertThat(ModelRegistry.providerOf(registry.require(2))).isEqualTo(LlmProvider.OPENAI_COMPATIBLE);
         assertThat(registry.hasCredential(registry.require(2))).isTrue();
-        assertThat(registry.all()).hasSize(3);
+        assertThat(registry.all()).hasSize(5);
     }
 }

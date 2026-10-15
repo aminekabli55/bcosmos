@@ -1,0 +1,122 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0022-create-finding-transition
+      author: amine
+      comment: "Table storing finding transitions between snapshots (Phase 8, spec section 4.1 & 4.2)"
+      changes:
+        - createTable:
+            tableName: finding_transition
+            remarks: Finding lifecycle state changes (NEW, RESOLVED, PERSISTENT, UNCERTAIN) between runs
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: from_run_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: to_run_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: from_finding_id
+                  type: bigint
+                  constraints:
+                    nullable: true
+              - column:
+                  name: to_finding_id
+                  type: bigint
+                  constraints:
+                    nullable: true
+              - column:
+                  name: fingerprint
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: rule_id
+                  type: varchar(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: file_path
+                  type: varchar(500)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: type
+                  type: varchar(30)
+                  remarks: NEW, RESOLVED, PERSISTENT, UNCERTAIN
+                  constraints:
+                    nullable: false
+              - column:
+                  name: confidence
+                  type: double precision
+                  constraints:
+                    nullable: false
+              - column:
+                  name: reason
+                  type: text
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - addForeignKeyConstraint:
+            baseTableName: finding_transition
+            baseColumnNames: from_run_id
+            referencedTableName: analysis_run
+            referencedColumnNames: id
+            constraintName: fk_transition_from_run
+            onDelete: CASCADE
+
+        - addForeignKeyConstraint:
+            baseTableName: finding_transition
+            baseColumnNames: to_run_id
+            referencedTableName: analysis_run
+            referencedColumnNames: id
+            constraintName: fk_transition_to_run
+            onDelete: CASCADE
+
+        - addForeignKeyConstraint:
+            baseTableName: finding_transition
+            baseColumnNames: from_finding_id
+            referencedTableName: finding
+            referencedColumnNames: id
+            constraintName: fk_transition_from_finding
+            onDelete: SET NULL
+
+        - addForeignKeyConstraint:
+            baseTableName: finding_transition
+            baseColumnNames: to_finding_id
+            referencedTableName: finding
+            referencedColumnNames: id
+            constraintName: fk_transition_to_finding
+            onDelete: SET NULL
+
+        - createIndex:
+            tableName: finding_transition
+            indexName: idx_transition_runs
+            columns:
+              - column:
+                  name: from_run_id
+              - column:
+                  name: to_run_id
+
+        - createIndex:
+            tableName: finding_transition
+            indexName: idx_transition_fingerprint
+            columns:
+              - column:
+                  name: fingerprint

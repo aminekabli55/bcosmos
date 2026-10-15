@@ -9,5 +9,13 @@ public interface LlmModelJpaRepository extends JpaRepository<LlmModelEntity, Lon
 
     List<LlmModelEntity> findAllByOrderByProviderAscModelNameAsc();
 
-    Optional<LlmModelEntity> findByDefaultModelTrue();
+    /**
+     * The default row of one capability.
+     *
+     * <p>Scoped on purpose: the registry has a default chat model and a default embedding model, and a lookup that
+     * ignored the capability would let an embedding model answer chat calls.</p>
+     */
+    Optional<LlmModelEntity> findByCapabilityAndDefaultModelTrue(LlmModelCapability capability);
+
+    List<LlmModelEntity> findByCapabilityOrderByProviderAscModelNameAsc(LlmModelCapability capability);
 }

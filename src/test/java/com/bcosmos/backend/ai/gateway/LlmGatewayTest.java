@@ -70,9 +70,11 @@ class LlmGatewayTest {
     @BeforeEach
     void setUp() {
         server.resetAll();
+        // The embedding row declares width 2 so it matches the vectors the fake provider returns.
         store = new AiTestSupport.FakeModelStore(
                 model(1, LlmProvider.GEMINI, "gemini-2.5-flash", true, true),
-                model(2, LlmProvider.OPENAI_COMPATIBLE, "gpt-4o-mini", false, false));
+                model(2, LlmProvider.OPENAI_COMPATIBLE, "gpt-4o-mini", false, false),
+                AiTestSupport.embeddingModel(3, LlmProvider.GEMINI, "gemini-2.5-flash", true, true, 2));
         recorder = new AiTestSupport.RecordingUsageRecorder();
         gateway = gateway(AiTestSupport.properties(true, server.baseUrl(), server.baseUrl(), Duration.ofSeconds(5), 2));
     }
@@ -149,6 +151,20 @@ class LlmGatewayTest {
     }
 
     @Test
+    void sendsNothingWhenTheStoredSwitchIsOffEvenThoughTheDeploymentPropertyIsOn() {
+        // The settings screen can switch the whole layer off without a restart; nothing may be sent and nothing paid
+        // for (spec v2 section 10). No usage row is written either, because no call was made.
+        gateway = gateway(AiTestSupport.properties(true, server.baseUrl(), server.baseUrl(), Duration.ofSeconds(5), 2),
+                () -> false);
+
+        assertThatThrownBy(() -> gateway.chat(ChatRequest.of(null, List.of(ChatMessage.user("explain")), null)))
+                .isInstanceOf(LlmDisabledException.class);
+
+        assertThat(server.getAllServeEvents()).isEmpty();
+        assertThat(recorder.rows()).isEmpty();
+    }
+
+    @Test
     void refusesAModelThatIsNotEnabledEvenWhenTheAiLayerIsOn() {
         assertThatThrownBy(() -> gateway.chat(ChatRequest.of(2L, List.of(ChatMessage.user("explain")), null)))
                 .isInstanceOf(ModelDisabledException.class);
@@ -215,13 +231,21 @@ class LlmGatewayTest {
                 .satisfies(row -> assertThat(row.operation()).isEqualTo(LlmOperation.EMBED));
     }
 
+    /**
+     * A gateway whose switch follows the property, which is the deployment default.
+     */
     private LlmGateway gateway(AiProperties properties) {
+        return gateway(properties, () -> properties.enabled());
+    }
+
+    private LlmGateway gateway(AiProperties properties, AiEnablement enablement) {
         ProviderCredentials credentials = new ProviderCredentials(properties);
         List<LlmProviderAdapter> adapters = List.of(
                 new GeminiAdapter(properties, credentials, JSON),
                 new OpenAiCompatibleAdapter(properties, credentials, JSON));
-        return new LlmGateway(properties, new ModelRegistry(store, credentials, Clock.systemUTC()), adapters, recorder,
-                SecretRedactor.from(credentials), JSON, AiConfiguration.retryFor(properties), Clock.systemUTC());
+        return new LlmGateway(properties, enablement, new ModelRegistry(store, credentials, Clock.systemUTC()),
+                adapters, recorder, SecretRedactor.from(credentials), JSON, AiConfiguration.retryFor(properties),
+                Clock.systemUTC());
     }
 
     private static PromptTemplateLoader loader() {

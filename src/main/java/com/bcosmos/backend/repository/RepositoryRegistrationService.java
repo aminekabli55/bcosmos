@@ -15,8 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
  * Registers repositories and reads them back (spec v2 section 8, UC1).
  *
  * <p>The path is validated by {@link SafePathValidator} and stored canonically; nothing in a repository is read,
- * built or executed at registration time. Phase 1 knows one language, so the registered repository is recorded as
- * Java: language detection per repository arrives with the second adapter (spec section 3.1, phase 10).</p>
+ * built or executed at registration time. Because registration never reads the tree it cannot know the language,
+ * so it records the Java default and the first run that finishes replaces it with the language most of its files
+ * were really written in ({@link PrimaryLanguageResolver}, ADR 0034).</p>
  */
 @Service
 public class RepositoryRegistrationService {

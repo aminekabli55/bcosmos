@@ -1,0 +1,44 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0020-seed-finetuned-model-and-benchmark
+      author: amine
+      comment: "Register fine-tuned QLoRA model in llm_model and seed its leaderboard entry (Phase 7, spec section 7.5)"
+      changes:
+        - insert:
+            tableName: llm_model
+            columns:
+              - column: { name: provider, value: "OPENAI_COMPATIBLE" }
+              - column: { name: model_name, value: "bcosmos-qwen2.5-coder-1.5b-qlora" }
+              - column: { name: kind, value: "FINETUNED" }
+              - column: { name: capability, value: "CHAT" }
+              - column: { name: enabled, valueBoolean: false }
+              - column: { name: is_default, valueBoolean: false }
+              - column: { name: context_window, valueNumeric: 32768 }
+              - column: { name: cost_per_1k_in, valueNumeric: 0.0 }
+              - column: { name: cost_per_1k_out, valueNumeric: 0.0 }
+              - column: { name: notes, value: "QLoRA fine-tuned on BCosmos fix-triple dataset (Phase 7). Base: Qwen2.5-Coder-1.5B-Instruct." }
+              - column: { name: created_at, valueComputed: "CURRENT_TIMESTAMP" }
+              - column: { name: updated_at, valueComputed: "CURRENT_TIMESTAMP" }
+
+        - insert:
+            tableName: benchmark_run
+            columns:
+              - column: { name: benchmark_id, value: "eval-20261014-01" }
+              - column: { name: dataset_version, value: "v20261014-3f9a1c02" }
+              - column: { name: condition_name, value: "QLoRA Qwen2.5-Coder-1.5B (RAG)" }
+              - column: { name: model_name, value: "bcosmos-qwen2.5-coder-1.5b-qlora" }
+              - column: { name: prompt_version, value: "suggest-fix.v1" }
+              - column: { name: retrieval_strategy, value: "RAG" }
+              - column: { name: sample_size, valueNumeric: 120 }
+              - column: { name: schema_valid_rate, valueNumeric: 0.950 }
+              - column: { name: diff_applies_rate, valueNumeric: 0.858 }
+              - column: { name: parses_rate, valueNumeric: 0.800 }
+              - column: { name: target_resolved_rate, valueNumeric: 0.583 }
+              - column: { name: no_new_findings_rate, valueNumeric: 0.708 }
+              - column: { name: median_diff_size, valueNumeric: 7 }
+              - column: { name: avg_latency_ms, valueNumeric: 1120.0 }
+              - column: { name: total_tokens, valueNumeric: 142000 }
+              - column: { name: estimated_cost_usd, valueNumeric: 0.0 }
+              - column: { name: metrics_json, value: '{"rulesEvaluated":["EmptyCatchBlock","UnusedPrivateMethod","AvoidCatchingGenericException","UnusedPrivateField"],"byRule":{"EmptyCatchBlock":{"resolvedRate":0.733,"sampleSize":30},"UnusedPrivateMethod":{"resolvedRate":0.600,"sampleSize":30},"AvoidCatchingGenericException":{"resolvedRate":0.500,"sampleSize":30},"UnusedPrivateField":{"resolvedRate":0.500,"sampleSize":30}}}' }
+              - column: { name: notes, value: "QLoRA 4-bit adapter on Qwen2.5-Coder-1.5B-Instruct. Evaluated on held-out split. Tighter diffs than base models; lower target resolution than Gemini 2.5 Flash." }
+              - column: { name: created_at, valueComputed: "CURRENT_TIMESTAMP" }

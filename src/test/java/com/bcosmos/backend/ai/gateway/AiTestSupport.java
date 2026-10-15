@@ -1,6 +1,7 @@
 package com.bcosmos.backend.ai.gateway;
 
 import com.bcosmos.backend.config.AiProperties;
+import com.bcosmos.backend.persistence.LlmModelCapability;
 import com.bcosmos.backend.persistence.LlmModelKind;
 import com.bcosmos.backend.persistence.LlmModelRecord;
 import com.bcosmos.backend.persistence.LlmModelStore;
@@ -27,8 +28,15 @@ final class AiTestSupport {
     }
 
     static LlmModelRecord model(long id, LlmProvider provider, String modelName, boolean enabled, boolean isDefault) {
-        return new LlmModelRecord(id, provider, modelName, LlmModelKind.HOSTED, enabled, isDefault, 128_000, COST_IN,
-                COST_OUT, "test row", CREATED, CREATED);
+        return new LlmModelRecord(id, provider, modelName, LlmModelKind.HOSTED, LlmModelCapability.CHAT, null, enabled,
+                isDefault, 128_000, COST_IN, COST_OUT, "test row", CREATED, CREATED);
+    }
+
+    /** An embedding registry row: same shape plus the capability and the vector width it asks for. */
+    static LlmModelRecord embeddingModel(long id, LlmProvider provider, String modelName, boolean enabled,
+            boolean isDefault, int dimension) {
+        return new LlmModelRecord(id, provider, modelName, LlmModelKind.HOSTED, LlmModelCapability.EMBEDDING,
+                dimension, enabled, isDefault, 8_192, COST_IN, BigDecimal.ZERO, "test embedding row", CREATED, CREATED);
     }
 
     static AiProperties properties(boolean enabled, String geminiBaseUrl, String openAiBaseUrl, Duration timeout,
@@ -82,8 +90,15 @@ final class AiTestSupport {
         }
 
         @Override
-        public Optional<LlmModelRecord> findDefault() {
-            return rows.values().stream().filter(LlmModelRecord::defaultModel).findFirst();
+        public Optional<LlmModelRecord> findDefault(LlmModelCapability capability) {
+            return rows.values().stream()
+                    .filter(model -> model.capability() == capability && model.defaultModel())
+                    .findFirst();
+        }
+
+        @Override
+        public List<LlmModelRecord> findByCapability(LlmModelCapability capability) {
+            return rows.values().stream().filter(model -> model.capability() == capability).toList();
         }
 
         @Override
@@ -94,15 +109,17 @@ final class AiTestSupport {
             return stored;
         }
 
-        /** Rows marked as default, so a test can assert the registry keeps at most one. */
-        List<LlmModelRecord> defaults() {
-            return rows.values().stream().filter(LlmModelRecord::defaultModel).toList();
+        /** Rows marked as default for one capability, so a test can assert the registry keeps at most one. */
+        List<LlmModelRecord> defaults(LlmModelCapability capability) {
+            return rows.values().stream()
+                    .filter(model -> model.capability() == capability && model.defaultModel())
+                    .toList();
         }
 
         private static LlmModelRecord withId(LlmModelRecord model, long id) {
-            return new LlmModelRecord(id, model.provider(), model.modelName(), model.kind(), model.enabled(),
-                    model.defaultModel(), model.contextWindow(), model.costPer1kIn(), model.costPer1kOut(),
-                    model.notes(), model.createdAt(), model.updatedAt());
+            return new LlmModelRecord(id, model.provider(), model.modelName(), model.kind(), model.capability(),
+                    model.embeddingDimension(), model.enabled(), model.defaultModel(), model.contextWindow(),
+                    model.costPer1kIn(), model.costPer1kOut(), model.notes(), model.createdAt(), model.updatedAt());
         }
     }
 

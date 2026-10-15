@@ -1,0 +1,114 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0023-create-commit-review
+      author: bcosmos
+      comment: >
+        Evidence-based commit review (spec v2 section 7.6 and 8). Stores facts (files changed,
+        findings delta, affected dependents), risk signals (hotspot file touched, new high findings,
+        missing test changes), and optional AI summary with verified file/line citations.
+      changes:
+        - createTable:
+            tableName: commit_review
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_commit_review
+              - column:
+                  name: repository_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_commit_review_repository
+                    references: repository(id)
+              - column:
+                  name: from_commit_hash
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: to_commit_hash
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: files_changed_count
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: new_findings_count
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: resolved_findings_count
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: persistent_findings_count
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: uncertain_findings_count
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: facts_json
+                  type: JSONB
+                  defaultValue: "{}"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: risk_signals_json
+                  type: JSONB
+                  defaultValue: "[]"
+                  constraints:
+                    nullable: false
+              - column:
+                  name: ai_summary
+                  type: TEXT
+              - column:
+                  name: what_to_check_json
+                  type: JSONB
+              - column:
+                  name: tests_to_run_json
+                  type: JSONB
+              - column:
+                  name: ai_model_name
+                  type: VARCHAR(100)
+              - column:
+                  name: ai_model_id
+                  type: BIGINT
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            tableName: commit_review
+            indexName: idx_commit_review_repository
+            columns:
+              - column:
+                  name: repository_id
+
+        - createIndex:
+            tableName: commit_review
+            indexName: idx_commit_review_to_commit
+            columns:
+              - column:
+                  name: repository_id
+              - column:
+                  name: to_commit_hash

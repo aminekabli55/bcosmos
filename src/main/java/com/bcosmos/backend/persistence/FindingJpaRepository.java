@@ -1,6 +1,7 @@
 package com.bcosmos.backend.persistence;
 
 import com.bcosmos.core.model.Severity;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,6 +12,8 @@ import org.springframework.data.repository.query.Param;
 public interface FindingJpaRepository extends JpaRepository<FindingEntity, Long> {
 
     long countByRunId(Long runId);
+
+    List<FindingEntity> findByRunId(Long runId);
 
     /**
      * Findings of one run, optionally filtered by severity, rule and file (spec v2 section 8). A null filter means

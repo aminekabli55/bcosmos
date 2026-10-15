@@ -8,4 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface AnalysisRunJpaRepository extends JpaRepository<AnalysisRunEntity, Long> {
 
     Page<AnalysisRunEntity> findByRepositoryIdOrderByCreatedAtDesc(Long repositoryId, Pageable pageable);
+
+    java.util.Optional<AnalysisRunEntity> findFirstByRepositoryIdAndCommitHashOrderByCreatedAtDesc(
+            Long repositoryId, String commitHash);
 }

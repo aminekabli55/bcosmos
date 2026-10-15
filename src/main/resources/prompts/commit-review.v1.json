@@ -1,0 +1,42 @@
+{
+  "type": "object",
+  "required": ["summary", "whatToCheck", "testsToRun"],
+  "properties": {
+    "summary": {
+      "type": "string"
+    },
+    "whatToCheck": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["file", "startLine", "description"],
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "startLine": {
+            "type": "integer"
+          },
+          "endLine": {
+            "type": "integer"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "testsToRun": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

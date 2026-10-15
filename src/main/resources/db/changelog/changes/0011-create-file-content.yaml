@@ -1,0 +1,48 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0011-create-file-content
+      author: bcosmos
+      comment: >
+        The text of the analysed revision, one row per file record (spec v2 section 7.2/7.3). Two Phase 3 needs
+        force this: the chunker must read the source of a symbol without touching the repository on disk (the file
+        may have changed since the run), and the PatchValidator must apply a proposed diff to the very revision that
+        was analysed. It is an addition to the spec's table list, deliberately kept out of file_record so a findings
+        page never has to transfer the content of every file it mentions. Deleting BCosmos metadata still never
+        touches the original repository: this is a copy inside BCosmos' own database.
+      changes:
+        - createTable:
+            tableName: file_content
+            remarks: Source text of one file as it was analysed by one run
+            columns:
+              - column:
+                  name: file_id
+                  type: bigint
+                  remarks: Primary key and foreign key, because one file record has exactly one stored revision.
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: text
+                  type: text
+                  constraints:
+                    nullable: false
+              - column:
+                  name: char_count
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: stored_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: file_content
+            baseColumnNames: file_id
+            referencedTableName: file_record
+            referencedColumnNames: id
+            constraintName: fk_file_content_file_record
+            onDelete: CASCADE
+      rollback:
+        - dropTable:
+            tableName: file_content
