@@ -1,13 +1,10 @@
 spring:
   application:
     name: analysis-worker
-  datasource:
-    # Local development defaults match infrastructure/docker-compose.yml.
-    url: jdbc:postgresql://${BCOSMOS_DB_HOST:localhost}:${BCOSMOS_DB_PORT:5432}/${BCOSMOS_DB_NAME:bcosmos}
-    username: ${BCOSMOS_DB_USER:bcosmos}
-    password: ${BCOSMOS_DB_PASSWORD:bcosmos}
-    hikari:
-      pool-name: bcosmos-analysis-worker
+  # The profile you get when nothing is set, exactly as in the backend (ADR 0018): local development just works,
+  # anything that is not local is explicit.
+  profiles:
+    default: dev
   jpa:
     hibernate:
       # Liquibase is the only owner of the schema (ADR 0009); never let JPA change it.
@@ -17,7 +14,6 @@ spring:
     # The backend owns the migrations; the worker only reads and writes rows.
     enabled: false
   kafka:
-    bootstrap-servers: ${BCOSMOS_KAFKA_BOOTSTRAP:localhost:9092}
     consumer:
       group-id: bcosmos-analysis-worker
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
@@ -33,9 +29,6 @@ management:
     web:
       exposure:
         include: health,info
-  endpoint:
-    health:
-      show-details: always
 
 bcosmos:
   worker:
@@ -43,5 +36,3 @@ bcosmos:
     max-retry-attempts: ${BCOSMOS_WORKER_MAX_RETRY:3}
     initial-backoff-ms: ${BCOSMOS_WORKER_INITIAL_BACKOFF_MS:500}
     backoff-multiplier: ${BCOSMOS_WORKER_BACKOFF_MULTIPLIER:2.0}
-    clone-dir: ${BCOSMOS_WORKER_CLONE_DIR:data/repos}
-

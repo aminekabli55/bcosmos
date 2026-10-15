@@ -1,0 +1,22 @@
+spring:
+  datasource:
+    # Local development against infrastructure/docker-compose.yml. Compose publishes the container on both 5432
+    # (the documented default) and 5433 (the escape hatch for machines where a *native* PostgreSQL already holds
+    # 0.0.0.0:5432 — see the comment on the postgres service). 5433 therefore works on every machine.
+    url: jdbc:postgresql://${BCOSMOS_DB_HOST:localhost}:${BCOSMOS_DB_PORT:5433}/${BCOSMOS_DB_NAME:bcosmos}
+    username: ${BCOSMOS_DB_USER:bcosmos}
+    password: ${BCOSMOS_DB_PASSWORD:bcosmos}
+    hikari:
+      pool-name: bcosmos-analysis-worker
+  kafka:
+    bootstrap-servers: ${BCOSMOS_KAFKA_BOOTSTRAP:localhost:9092}
+
+bcosmos:
+  worker:
+    # Where a cloned repository is materialised; the worker consumes the clone the miner produced.
+    clone-dir: ${BCOSMOS_WORKER_CLONE_DIR:data/repos}
+
+management:
+  endpoint:
+    health:
+      show-details: always

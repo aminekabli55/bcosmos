@@ -28,6 +28,9 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+		<!-- Same versions as analysis-core: the adapters and the bindings they link against must not drift apart. -->
+		<tree-sitter.version>0.25.3</tree-sitter.version>
+		<tree-sitter-typescript.version>0.23.2</tree-sitter-typescript.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -96,6 +99,21 @@
             <groupId>com.bcosmos</groupId>
             <artifactId>analysis-core</artifactId>
             <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+        <!--
+            WorkerConfiguration builds the CommitAnalysisPipeline from JavaAdapter and TypeScriptAdapter, so this
+            module's runtime classpath must carry the TypeScript parser binding itself instead of inheriting it
+            implicitly from analysis-core (ADR 0036).
+        -->
+        <dependency>
+            <groupId>io.github.bonede</groupId>
+            <artifactId>tree-sitter</artifactId>
+            <version>${tree-sitter.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.bonede</groupId>
+            <artifactId>tree-sitter-typescript</artifactId>
+            <version>${tree-sitter-typescript.version}</version>
         </dependency>
         <dependency>
             <groupId>org.eclipse.jgit</groupId>
