@@ -378,6 +378,17 @@ tbody tr.is-selected td {
   box-shadow: none;
 }
 
+.button--danger {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+
+.button--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 85%, black);
+  border-color: color-mix(in srgb, var(--danger) 85%, black);
+}
+
 .button--sm {
   font-size: 0.78rem;
   padding: 0.35rem 0.7rem;

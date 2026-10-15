@@ -29,6 +29,12 @@ export class Repositories {
   protected readonly registerError = signal<string | null>(null);
   protected readonly registerNotice = signal<string | null>(null);
 
+  /** The row whose Delete button was pressed: nothing is sent until the confirmation is answered. */
+  protected readonly deleteCandidate = signal<Repository | null>(null);
+  protected readonly deleting = signal(false);
+  protected readonly deleteError = signal<string | null>(null);
+  protected readonly deleteNotice = signal<string | null>(null);
+
   protected readonly selected = signal<Repository | null>(null);
   protected readonly runs = signal<AnalysisRun[]>([]);
   protected readonly runsLoading = signal(false);
@@ -97,6 +103,49 @@ export class Repositories {
         this.registerError.set(problemMessage(error));
       },
     });
+  }
+
+  protected requestDelete(repository: Repository): void {
+    this.deleteError.set(null);
+    this.deleteNotice.set(null);
+    this.deleteCandidate.set(repository);
+  }
+
+  protected cancelDelete(): void {
+    this.deleteCandidate.set(null);
+  }
+
+  /**
+   * Removes the registration and everything recorded for it. The folder on disk stays: BCosmos only ever read it.
+   * While the request is in flight the confirmation stays open, so a refused delete can still be read.
+   */
+  protected confirmDelete(repository: Repository): void {
+    this.deleting.set(true);
+    this.deleteError.set(null);
+    this.api.deleteRepository(repository.id).subscribe({
+      next: () => {
+        this.deleting.set(false);
+        this.deleteCandidate.set(null);
+        this.deleteNotice.set(`Removed ${repository.name}.`);
+        this.forgetIfSelected(repository);
+        this.loadRepositories();
+      },
+      error: (error: unknown) => {
+        this.deleting.set(false);
+        this.deleteError.set(problemMessage(error));
+      },
+    });
+  }
+
+  /** A deleted repository must not keep its run table on screen, and must stop being polled. */
+  private forgetIfSelected(repository: Repository): void {
+    if (this.selected()?.id !== repository.id) {
+      return;
+    }
+    this.stopPolling();
+    this.selected.set(null);
+    this.runs.set([]);
+    this.runsError.set(null);
   }
 
   protected select(repository: Repository): void {

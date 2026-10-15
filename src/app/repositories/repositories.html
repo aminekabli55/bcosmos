@@ -60,6 +60,13 @@
     }
   </div>
 
+  @if (deleteError()) {
+    <div class="notice notice--error" role="alert">{{ deleteError() }}</div>
+  }
+  @if (deleteNotice()) {
+    <div class="notice notice--ok">{{ deleteNotice() }}</div>
+  }
+
   @if (loading()) {
     <p class="state" role="status">Loading repositories…</p>
   } @else if (error()) {
@@ -113,8 +120,46 @@
                   Analyse
                 </button>
                 <button type="button" class="button button--ghost button--sm" (click)="select(repository)">Runs</button>
+                @if (deleteCandidate()?.id !== repository.id) {
+                  <button
+                    type="button"
+                    class="button button--danger button--sm"
+                    [attr.aria-label]="'Delete ' + repository.name"
+                    (click)="requestDelete(repository)"
+                  >
+                    Delete
+                  </button>
+                }
               </td>
             </tr>
+            @if (deleteCandidate()?.id === repository.id) {
+              <tr class="confirm-row">
+                <td colspan="6">
+                  <p class="confirm-row__text">
+                    Remove <strong>{{ repository.name }}</strong> and every run, finding and symbol recorded for it?
+                    The folder on disk is not touched.
+                  </p>
+                  <div class="confirm-row__actions">
+                    <button
+                      type="button"
+                      class="button button--danger button--sm"
+                      [disabled]="deleting()"
+                      (click)="confirmDelete(repository)"
+                    >
+                      {{ deleting() ? 'Removing…' : 'Yes, remove it' }}
+                    </button>
+                    <button
+                      type="button"
+                      class="button button--ghost button--sm"
+                      [disabled]="deleting()"
+                      (click)="cancelDelete()"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
           }
         </tbody>
       </table>

@@ -149,6 +149,68 @@ describe('Repositories', () => {
     expect(root.textContent).toContain('outside the allowed roots');
   });
 
+  it('asks before deleting, then removes the registration and reloads the list', async () => {
+    const root = create();
+    flushRepositories([repository]);
+    await fixture.whenStable();
+
+    button(root, 'Delete').click();
+    fixture.detectChanges();
+    expect(root.querySelector('.confirm-row')).not.toBeNull();
+    expect(root.textContent).toContain('every run, finding and symbol recorded for it');
+    expect(root.textContent).toContain('folder on disk is not touched');
+
+    button(root, 'Yes, remove it').click();
+    const request = http.expectOne((candidate) => candidate.url === '/api/repositories/1');
+    expect(request.request.method).toBe('DELETE');
+    request.flush(null, { status: 204, statusText: 'No Content' });
+
+    flushRepositories([]);
+    await fixture.whenStable();
+
+    expect(root.textContent).toContain('Removed java-fixture.');
+    expect(root.textContent).toContain('No repositories yet');
+  });
+
+  it('sends nothing when the confirmation is cancelled', async () => {
+    const root = create();
+    flushRepositories([repository]);
+    await fixture.whenStable();
+
+    button(root, 'Delete').click();
+    fixture.detectChanges();
+    button(root, 'Cancel').click();
+    fixture.detectChanges();
+
+    expect(root.querySelector('.confirm-row')).toBeNull();
+    expect(http.match(() => true).length).toBe(0);
+    expect(root.textContent).toContain('java-fixture');
+  });
+
+  it('reports a refused delete instead of pretending the row is gone', async () => {
+    const root = create();
+    flushRepositories([repository]);
+    await fixture.whenStable();
+
+    button(root, 'Delete').click();
+    fixture.detectChanges();
+    button(root, 'Yes, remove it').click();
+    http.expectOne((candidate) => candidate.url === '/api/repositories/1').flush(
+      {
+        title: 'Repository is busy',
+        detail: 'this repository has an analysis that has not finished yet',
+      },
+      { status: 409, statusText: 'Conflict' },
+    );
+    await fixture.whenStable();
+
+    expect(root.textContent).toContain('Repository is busy');
+    expect(root.textContent).toContain('has not finished yet');
+    // Nothing was reloaded, so the row is still the one the backend still has.
+    expect(http.match((candidate) => candidate.url === '/api/repositories').length).toBe(0);
+    expect(root.querySelector('.confirm-row')).not.toBeNull();
+  });
+
   it('follows a run until it finishes, then stops polling', () => {
     vi.useFakeTimers();
     try {

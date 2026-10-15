@@ -74,6 +74,22 @@
   font-weight: 600;
 }
 
+.confirm-row td {
+  background: var(--danger-soft);
+  border-bottom-color: color-mix(in srgb, var(--danger) 25%, white);
+}
+
+.confirm-row__text {
+  margin: 0 0 0.6rem;
+  font-size: 0.875rem;
+}
+
+.confirm-row__actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
 .error-row td {
   background: var(--danger-soft);
   border-bottom-color: color-mix(in srgb, var(--danger) 25%, white);

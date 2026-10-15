@@ -59,6 +59,14 @@ export class BcosmosApi {
     return this.http.post<Repository>('/api/repositories', request);
   }
 
+  /**
+   * Forgets a registered repository together with its runs and everything derived from them (ADR 0037). The folder
+   * on disk is not touched: what is removed is the registration, not the project.
+   */
+  deleteRepository(repositoryId: number): Observable<void> {
+    return this.http.delete<void>(`/api/repositories/${repositoryId}`);
+  }
+
   startAnalysis(repositoryId: number): Observable<AnalysisRun> {
     return this.http.post<AnalysisRun>(`/api/repositories/${repositoryId}/analyses`, {});
   }

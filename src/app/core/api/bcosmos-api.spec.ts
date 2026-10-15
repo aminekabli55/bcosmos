@@ -46,6 +46,14 @@ describe('BcosmosApi', () => {
     request.flush({});
   });
 
+  it('deletes a repository', () => {
+    api.deleteRepository(7).subscribe();
+    const request = http.expectOne('/api/repositories/7');
+    expect(request.request.method).toBe('DELETE');
+    expect(request.request.body).toBeNull();
+    request.flush(null, { status: 204, statusText: 'No Content' });
+  });
+
   it('sends only the finding filters that were set', () => {
     api.listFindings(9, { severity: 'CRITICAL', rule: null, file: 'BookService.java', page: 0, size: 25 }).subscribe();
     const request = http.expectOne((candidate) => candidate.url === '/api/analyses/9/findings');
