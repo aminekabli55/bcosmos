@@ -1,6 +1,7 @@
 package com.bcosmos.core.java;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.bcosmos.core.Fixtures;
 import com.bcosmos.core.model.Finding;
@@ -100,8 +101,60 @@ class JavaAdapterAnalyzeTest {
         assertThat(JavaAdapter.baselineRuleReferences()).containsExactly(
                 "category/java/errorprone.xml/EmptyCatchBlock",
                 "category/java/bestpractices.xml/UnusedPrivateField",
-                "category/java/bestpractices.xml/UnusedLocalVariable",
-                "category/java/codestyle.xml/UnusedImports");
+                "category/java/bestpractices.xml/UnusedPrivateMethod",
+                "category/java/errorprone.xml/AvoidCatchingGenericException");
+    }
+
+    @Test
+    @DisplayName("a reference to a rule that does not exist is refused loudly, not treated as zero findings")
+    void missingRuleReferenceIsRefusedLoudly() {
+        // UnusedImports was removed from PMD 7. PMD answers an empty rule set for it instead of throwing, which is
+        // exactly the silent-nothing case the baseline file must never hide.
+        var configuration = new net.sourceforge.pmd.PMDConfiguration();
+        configuration.setIgnoreIncrementalAnalysis(true);
+
+        assertThatThrownBy(() -> adapter.loadPmdRuleSet(configuration,
+                List.of("category/java/codestyle.xml/UnusedImports")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("resolves to no rule")
+                .hasMessageContaining("UnusedImports");
+    }
+
+    @Test
+    @DisplayName("every baseline rule really fires on the source that violates it")
+    void everyBaselineRuleFires() {
+        // A rule that is listed but never fires is coverage the catalog does not have (spec section 0, rule 5).
+        String source = """
+                package com.acme.quality;
+
+                public class BaselineCoverageSample {
+                    private int neverRead;
+
+                    private void neverCalled() {
+                    }
+
+                    public int swallowTheFailure() {
+                        try {
+                            return Integer.parseInt("1");
+                        } catch (NumberFormatException e) {
+                        }
+                        return 0;
+                    }
+
+                    public int catchTooBroadly() {
+                        try {
+                            return Integer.parseInt("1");
+                        } catch (RuntimeException e) {
+                            return 0;
+                        }
+                    }
+                }
+                """;
+        JavaParsedFile file = adapter.parse(Fixtures.relativePath("BaselineCoverageSample.java"), source);
+
+        assertThat(adapter.analyze(file, rules).stream().map(Finding::ruleId).distinct())
+                .containsExactlyInAnyOrder("EmptyCatchBlock", "AvoidCatchingGenericException", "UnusedPrivateField",
+                        "UnusedPrivateMethod");
     }
 
     @Test

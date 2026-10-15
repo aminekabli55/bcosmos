@@ -18,9 +18,18 @@ import java.util.List;
      * @param source full source text
      */    T parse(Path file, String source);
 
-    /** Symbols of a parsed file. Returns an empty list when the language has no symbol support (support level 1). */    List<Symbol> extractSymbols(T file);
+    /** Symbols of a parsed file. Returns an empty list when the language has no symbol support (support level 1). */
+    List<Symbol> extractSymbols(T file);
 
-    /** Findings of one parsed file, filtered by the given rule set. */    List<Finding> analyze(T file, RuleSet rules);
+    /**
+     * Extracts structural relationships (calls, inheritance, type references) from a parsed file (Phase 8, Level 3).
+     */
+    default List<com.bcosmos.core.model.Relationship> extractRelationships(T file) {
+        return List.of();
+    }
+
+    /** Findings of one parsed file, filtered by the given rule set. */
+    List<Finding> analyze(T file, RuleSet rules);
 
     /** The default rule set of this adapter, including the hash stored on every run. */    RuleSet defaultRuleSet();
 

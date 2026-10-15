@@ -119,6 +119,12 @@ public final class JavaAdapter implements LanguageAdapter<JavaParsedFile> {
     }
 
     @Override
+    public List<com.bcosmos.core.model.Relationship> extractRelationships(JavaParsedFile file) {
+        Objects.requireNonNull(file, "file");
+        return JavaRelationshipExtractor.extract(file);
+    }
+
+    @Override
     public List<Finding> analyze(JavaParsedFile file, RuleSet rules) {
         Objects.requireNonNull(file, "file");
         Objects.requireNonNull(rules, "rules");
@@ -185,16 +191,30 @@ public final class JavaAdapter implements LanguageAdapter<JavaParsedFile> {
      * a reference that no longer resolves fails here, loudly, rather than producing a silently empty rule set.</p>
      */
     private net.sourceforge.pmd.lang.rule.RuleSet loadPmdRuleSet(PMDConfiguration configuration) {
+        return loadPmdRuleSet(configuration, baselineRuleReferences());
+    }
+
+    /** Loads the given references; package-private so a test can prove a missing rule reference fails loudly. */
+    net.sourceforge.pmd.lang.rule.RuleSet loadPmdRuleSet(PMDConfiguration configuration, List<String> references) {
         RuleSetLoader loader = RuleSetLoader.fromPmdConfig(configuration)
                 .loadResourcesWith(JavaAdapter.class.getClassLoader());
         List<net.sourceforge.pmd.lang.rule.Rule> rules = new ArrayList<>();
-        for (String reference : baselineRuleReferences()) {
+        for (String reference : references) {
+            List<net.sourceforge.pmd.lang.rule.Rule> loaded;
             try {
-                rules.addAll(loader.loadFromResource(reference).getRules());
+                loaded = List.copyOf(loader.loadFromResource(reference).getRules());
             } catch (RuntimeException e) {
                 throw new IllegalStateException("unknown rule reference in " + RULE_SET_CLASSPATH_ID + ": "
                         + reference + " (" + e.getMessage() + ")", e);
             }
+            if (loaded.isEmpty()) {
+                // PMD answers an empty rule set for a rule name it no longer knows, without throwing. A reference
+                // that silently runs nothing is worse than a broken one, so it fails here (test:
+                // JavaAdapterAnalyzeTest.missingRuleReferenceIsRefusedLoudly).
+                throw new IllegalStateException("rule reference in " + RULE_SET_CLASSPATH_ID + " resolves to no rule: "
+                        + reference + " (it may have been renamed or removed by PMD)");
+            }
+            rules.addAll(loaded);
         }
         if (rules.isEmpty()) {
             throw new IllegalStateException("baseline rule set " + RULE_SET_CLASSPATH_ID + " defines no rules");
