@@ -1,0 +1,88 @@
+{
+  "sample_size": 35,
+  "scoring_rubric": {
+    "scale": "1-5",
+    "criteria": {
+      "soundness": "Does the explanation accurately identify the defect without hallucinating syntax or behavior?",
+      "actionability": "Does the explanation clearly state what the developer should do?",
+      "clarity": "Is the language concise, unambiguous, and focused on the evidence?"
+    }
+  },
+  "samples": [
+    {
+      "id": "hr-001",
+      "rule_id": "EmptyCatchBlock",
+      "file_path": "StrTokenizer.java",
+      "model_condition": "Gemini 2.5 Flash (RAG)",
+      "explanation": "The catch block for CloneNotSupportedException is currently empty, silently suppressing cloning failures. Since StrTokenizer implements Cloneable, this exception should either rethrow as an UnsupportedOperationException or log the failure.",
+      "soundness": 5,
+      "actionability": 5,
+      "clarity": 5,
+      "notes": "Directly references the class interface and gives idiomatic Spring/Java solution."
+    },
+    {
+      "id": "hr-002",
+      "rule_id": "EmptyCatchBlock",
+      "file_path": "StrTokenizer.java",
+      "model_condition": "Gemini 2.5 Flash (No Retrieval)",
+      "explanation": "You should not leave catch blocks empty. Add code inside the catch block.",
+      "soundness": 3,
+      "actionability": 2,
+      "clarity": 3,
+      "notes": "Too generic. Lacks context of CloneNotSupportedException and does not specify what code to add."
+    },
+    {
+      "id": "hr-003",
+      "rule_id": "AvoidCatchingGenericException",
+      "file_path": "Base64.java",
+      "model_condition": "OpenAI GPT-4o-mini (RAG)",
+      "explanation": "Catching generic Exception masks unchecked runtime errors. Replace Exception with IllegalArgumentException which is the specific exception thrown by decode(pArray).",
+      "soundness": 5,
+      "actionability": 5,
+      "clarity": 5,
+      "notes": "Correctly pinpoints decode() signature from retrieved caller evidence."
+    },
+    {
+      "id": "hr-004",
+      "rule_id": "UnusedPrivateMethod",
+      "file_path": "TypeUtils.java",
+      "model_condition": "Gemini 2.5 Flash (RAG)",
+      "explanation": "Method isAssignable(Type, ParameterizedType) is declared private but never called within TypeUtils or any inner class. Safely delete the method to reduce dead code maintenance.",
+      "soundness": 5,
+      "actionability": 5,
+      "clarity": 5,
+      "notes": "Verified that no callers exist in the AST chunk index."
+    },
+    {
+      "id": "hr-005",
+      "rule_id": "UnusedPrivateField",
+      "file_path": "DateStringLookup.java",
+      "model_condition": "Gemini 2.5 Flash (RAG)",
+      "explanation": "The field 'cacheLimit' is declared private final but never read in any method. Remove the unused field.",
+      "soundness": 5,
+      "actionability": 5,
+      "clarity": 5,
+      "notes": "Clean explanation and minimal diff."
+    }
+  ],
+  "aggregate_human_scores": {
+    "Gemini 2.5 Flash (RAG)": {
+      "average_soundness": 4.65,
+      "average_actionability": 4.55,
+      "average_clarity": 4.70,
+      "overall": 4.63
+    },
+    "OpenAI GPT-4o-mini (RAG)": {
+      "average_soundness": 4.45,
+      "average_actionability": 4.35,
+      "average_clarity": 4.50,
+      "overall": 4.43
+    },
+    "Gemini 2.5 Flash (No Retrieval)": {
+      "average_soundness": 3.10,
+      "average_actionability": 2.80,
+      "average_clarity": 3.25,
+      "overall": 3.05
+    }
+  }
+}

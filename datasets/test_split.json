@@ -1,0 +1,72 @@
+{
+  "dataset_version": "v20261014-3f9a1c02",
+  "split": "test",
+  "sample_count": 120,
+  "rules": ["EmptyCatchBlock", "UnusedPrivateMethod", "AvoidCatchingGenericException", "UnusedPrivateField"],
+  "items": [
+    {
+      "id": "triple-001",
+      "repository_id": 1,
+      "repo_name": "apache/commons-lang",
+      "file_path": "src/main/java/org/apache/commons/lang3/text/StrTokenizer.java",
+      "rule_id": "EmptyCatchBlock",
+      "start_line": 420,
+      "before_snippet": "try {\n    return (StrTokenizer) super.clone();\n} catch (CloneNotSupportedException e) {\n    // empty\n}",
+      "retrieved_evidence": {
+        "enclosing_symbol": "public Object clone()",
+        "rule_description": "Empty Catch Block finds instances where an exception is caught, but nothing is done.",
+        "callers": ["StrTokenizer.cloneReset()"]
+      },
+      "ground_truth_diff": "@@ -422,2 +422,2 @@\n-} catch (CloneNotSupportedException e) {\n-    // empty\n+} catch (CloneNotSupportedException e) {\n+    throw new UnsupportedOperationException(e);\n }",
+      "expected_fix": "throw new UnsupportedOperationException(e);"
+    },
+    {
+      "id": "triple-002",
+      "repository_id": 1,
+      "repo_name": "apache/commons-lang",
+      "file_path": "src/main/java/org/apache/commons/lang3/reflect/TypeUtils.java",
+      "rule_id": "UnusedPrivateMethod",
+      "start_line": 315,
+      "before_snippet": "private static boolean isAssignable(Type type, ParameterizedType toParameterizedType) {\n    return false;\n}",
+      "retrieved_evidence": {
+        "enclosing_symbol": "TypeUtils",
+        "rule_description": "Unused Private Method detects private methods that are declared but never called.",
+        "callers": []
+      },
+      "ground_truth_diff": "@@ -315,3 +315,0 @@\n-private static boolean isAssignable(Type type, ParameterizedType toParameterizedType) {\n-    return false;\n-}",
+      "expected_fix": ""
+    },
+    {
+      "id": "triple-003",
+      "repository_id": 2,
+      "repo_name": "apache/commons-codec",
+      "file_path": "src/main/java/org/apache/commons/codec/binary/Base64.java",
+      "rule_id": "AvoidCatchingGenericException",
+      "start_line": 210,
+      "before_snippet": "try {\n    decode(pArray);\n} catch (Exception e) {\n    return false;\n}",
+      "retrieved_evidence": {
+        "enclosing_symbol": "public boolean isInAlphabet(byte[] pArray)",
+        "rule_description": "Avoid Catching Generic Exception flags catching Exception, Throwable, or RuntimeException directly.",
+        "callers": ["Base64.isBase64(byte[])"]
+      },
+      "ground_truth_diff": "@@ -212,2 +212,2 @@\n-} catch (Exception e) {\n+} catch (IllegalArgumentException e) {\n     return false;\n }",
+      "expected_fix": "} catch (IllegalArgumentException e) {"
+    },
+    {
+      "id": "triple-004",
+      "repository_id": 3,
+      "repo_name": "apache/commons-text",
+      "file_path": "src/main/java/org/apache/commons/text/lookup/DateStringLookup.java",
+      "rule_id": "UnusedPrivateField",
+      "start_line": 45,
+      "before_snippet": "private final int cacheLimit = 100;",
+      "retrieved_evidence": {
+        "enclosing_symbol": "DateStringLookup",
+        "rule_description": "Unused Private Field flags private fields that are never referenced.",
+        "callers": []
+      },
+      "ground_truth_diff": "@@ -45,1 +45,0 @@\n-private final int cacheLimit = 100;",
+      "expected_fix": ""
+    }
+  ]
+}

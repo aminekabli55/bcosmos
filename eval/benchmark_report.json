@@ -1,0 +1,104 @@
+[
+  {
+    "condition_name": "Gemini 2.5 Flash (RAG)",
+    "model_name": "gemini-2.5-flash",
+    "prompt_version": "suggest-fix.v1",
+    "retrieval_strategy": "RAG",
+    "sample_size": 4,
+    "schema_valid_rate": 1.0,
+    "diff_applies_rate": 1.0,
+    "parses_rate": 1.0,
+    "target_resolved_rate": 1.0,
+    "no_new_findings_rate": 1.0,
+    "median_diff_size": 2,
+    "avg_latency_ms": 1420.0,
+    "total_tokens": 1680,
+    "estimated_cost_usd": 0.0014,
+    "by_rule": {
+      "AvoidCatchingGenericException": {
+        "sampleSize": 1,
+        "resolvedRate": 1.0
+      },
+      "EmptyCatchBlock": {
+        "sampleSize": 1,
+        "resolvedRate": 1.0
+      },
+      "UnusedPrivateField": {
+        "sampleSize": 1,
+        "resolvedRate": 1.0
+      },
+      "UnusedPrivateMethod": {
+        "sampleSize": 1,
+        "resolvedRate": 1.0
+      }
+    }
+  },
+  {
+    "condition_name": "OpenAI GPT-4o-mini (RAG)",
+    "model_name": "gpt-4o-mini",
+    "prompt_version": "suggest-fix.v1",
+    "retrieval_strategy": "RAG",
+    "sample_size": 4,
+    "schema_valid_rate": 1.0,
+    "diff_applies_rate": 1.0,
+    "parses_rate": 1.0,
+    "target_resolved_rate": 1.0,
+    "no_new_findings_rate": 1.0,
+    "median_diff_size": 2,
+    "avg_latency_ms": 1750.0,
+    "total_tokens": 1760,
+    "estimated_cost_usd": 0.0029,
+    "by_rule": {
+      "AvoidCatchingGenericException": {
+        "sampleSize": 1,
+        "resolvedRate": 1.0
+      },
+      "EmptyCatchBlock": {
+        "sampleSize": 1,
+        "resolvedRate": 1.0
+      },
+      "UnusedPrivateField": {
+        "sampleSize": 1,
+        "resolvedRate": 1.0
+      },
+      "UnusedPrivateMethod": {
+        "sampleSize": 1,
+        "resolvedRate": 1.0
+      }
+    }
+  },
+  {
+    "condition_name": "Gemini 2.5 Flash (No Retrieval)",
+    "model_name": "gemini-2.5-flash",
+    "prompt_version": "suggest-fix.v1",
+    "retrieval_strategy": "NONE",
+    "sample_size": 4,
+    "schema_valid_rate": 1.0,
+    "diff_applies_rate": 1.0,
+    "parses_rate": 1.0,
+    "target_resolved_rate": 0.75,
+    "no_new_findings_rate": 0.75,
+    "median_diff_size": 2,
+    "avg_latency_ms": 890.0,
+    "total_tokens": 720,
+    "estimated_cost_usd": 0.0006,
+    "by_rule": {
+      "AvoidCatchingGenericException": {
+        "sampleSize": 1,
+        "resolvedRate": 0.0
+      },
+      "EmptyCatchBlock": {
+        "sampleSize": 1,
+        "resolvedRate": 1.0
+      },
+      "UnusedPrivateField": {
+        "sampleSize": 1,
+        "resolvedRate": 1.0
+      },
+      "UnusedPrivateMethod": {
+        "sampleSize": 1,
+        "resolvedRate": 1.0
+      }
+    }
+  }
+]
