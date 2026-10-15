@@ -16,6 +16,14 @@ spring:
   liquibase:
     # The backend owns the migrations; the worker only reads and writes rows.
     enabled: false
+  kafka:
+    bootstrap-servers: ${BCOSMOS_KAFKA_BOOTSTRAP:localhost:9092}
+    consumer:
+      group-id: bcosmos-analysis-worker
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false
 
 server:
   port: ${SERVER_PORT:8081}
@@ -28,3 +36,12 @@ management:
   endpoint:
     health:
       show-details: always
+
+bcosmos:
+  worker:
+    # Maximum retry attempts before sending to DLQ (ADR 0026).
+    max-retry-attempts: ${BCOSMOS_WORKER_MAX_RETRY:3}
+    initial-backoff-ms: ${BCOSMOS_WORKER_INITIAL_BACKOFF_MS:500}
+    backoff-multiplier: ${BCOSMOS_WORKER_BACKOFF_MULTIPLIER:2.0}
+    clone-dir: ${BCOSMOS_WORKER_CLONE_DIR:data/repos}
+
