@@ -5,6 +5,7 @@ import com.bcosmos.backend.jobs.AnalysisRunService;
 import com.bcosmos.backend.persistence.AnalysisRunEntity;
 import com.bcosmos.backend.persistence.RepositoryEntity;
 import com.bcosmos.backend.persistence.RepositorySourceType;
+import com.bcosmos.backend.repository.RepositoryDeletionService;
 import com.bcosmos.backend.repository.RepositoryRegistrationService;
 import com.bcosmos.backend.web.dto.AnalysisRunResponse;
 import com.bcosmos.backend.web.dto.PagedResponse;
@@ -18,6 +19,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -36,10 +38,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class RepositoryController {
 
     private final RepositoryRegistrationService registrations;
+    private final RepositoryDeletionService deletions;
     private final AnalysisRunService runs;
 
-    public RepositoryController(RepositoryRegistrationService registrations, AnalysisRunService runs) {
+    public RepositoryController(RepositoryRegistrationService registrations, RepositoryDeletionService deletions,
+            AnalysisRunService runs) {
         this.registrations = registrations;
+        this.deletions = deletions;
         this.runs = runs;
     }
 
@@ -65,6 +70,17 @@ public class RepositoryController {
     @GetMapping("/{id}")
     public RepositoryResponse get(@PathVariable long id) {
         return RepositoryResponse.of(registrations.require(id));
+    }
+
+    /**
+     * {@code DELETE /api/repositories/{id}} — forget a registered repository, its runs and everything derived from
+     * them (ADR 0037). The folder on disk is not touched: the registration is what is removed. Refused with 409
+     * while an analysis of it is still queued or running.
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable long id) {
+        deletions.delete(id);
+        return ResponseEntity.noContent().build();
     }
 
     /** {@code POST /api/repositories/{id}/analyses} — start an analysis and return the run to follow. */

@@ -87,3 +87,9 @@ databaseChangeLog:
       file: changes/0023-create-commit-review.yaml
       relativeToChangelogFile: true
 
+  # Repository lifecycle: removing a registration is a first-class operation, so its one child foreign key that
+  # was still refusing the delete is aligned with the cascade every other repository child already has (ADR 0037).
+  - include:
+      file: changes/0024-commit-review-repository-cascade.yaml
+      relativeToChangelogFile: true
+

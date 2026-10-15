@@ -18,6 +18,7 @@ import com.bcosmos.backend.ai.suggestion.SuggestionNotFoundException;
 import com.bcosmos.backend.jobs.AnalysisRunNotFoundException;
 import com.bcosmos.backend.repository.DuplicateRepositoryException;
 import com.bcosmos.backend.repository.InvalidRepositoryPathException;
+import com.bcosmos.backend.repository.RepositoryBusyException;
 import com.bcosmos.backend.repository.RepositoryNotFoundException;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -55,6 +56,12 @@ public class ApiExceptionHandler {
     @ExceptionHandler(RepositoryNotFoundException.class)
     public ProblemDetail handleRepositoryNotFound(RepositoryNotFoundException exception) {
         return problem(HttpStatus.NOT_FOUND, "Repository not found", exception.getMessage());
+    }
+
+    /** The repository still has an analysis in flight, so removing it now would race that runner (ADR 0037). */
+    @ExceptionHandler(RepositoryBusyException.class)
+    public ProblemDetail handleRepositoryBusy(RepositoryBusyException exception) {
+        return problem(HttpStatus.CONFLICT, "Repository is busy", exception.getMessage());
     }
 
     @ExceptionHandler(com.bcosmos.backend.repository.MinedRepositoryAnalysisNotSupportedException.class)
