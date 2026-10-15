@@ -33,6 +33,9 @@
 		<springdoc.version>3.1.1</springdoc.version>
 		<jgit.version>7.8.0.202609011348-r</jgit.version>
 		<resilience4j.version>2.4.0</resilience4j.version>
+		<!-- Same versions as analysis-core: the adapter and the binding it links against must not drift apart. -->
+		<tree-sitter.version>0.25.3</tree-sitter.version>
+		<tree-sitter-typescript.version>0.23.2</tree-sitter-typescript.version>
 		<archunit.version>1.5.1</archunit.version>
 		<wiremock.version>3.13.2</wiremock.version>
 	</properties>
@@ -42,6 +45,23 @@
 			<groupId>com.bcosmos</groupId>
 			<artifactId>analysis-core</artifactId>
 			<version>${analysis-core.version}</version>
+		</dependency>
+		<!--
+			The TypeScript parser binding (tree-sitter-ng). AnalysisConfiguration builds the TypeScriptAdapter
+			itself, so the binding is a real requirement of *this* module's runtime classpath and is declared here
+			rather than left implicit in analysis-core's transitive graph (ADR 0036). Without it the context fails
+			with "Factory method 'typeScriptAdapter' threw exception ... org/treesitter/TSLanguage": the adapter
+			class loads but the TSLanguage class it links against is absent.
+		-->
+		<dependency>
+			<groupId>io.github.bonede</groupId>
+			<artifactId>tree-sitter</artifactId>
+			<version>${tree-sitter.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>io.github.bonede</groupId>
+			<artifactId>tree-sitter-typescript</artifactId>
+			<version>${tree-sitter-typescript.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
