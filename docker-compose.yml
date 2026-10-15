@@ -61,7 +61,11 @@ services:
       SPARK_MASTER_HOST: spark-master
     command: ["/opt/spark/sbin/start-master.sh"]
     ports:
-      - "8080:8080"
+      # The master UI is published on 7080, not on Spark's default 8080: host 8080 is the backend's API, which
+      # the Angular dev server proxies /api to, so the two can never share it (a backend start otherwise dies with
+      # `Web server failed to start. Port 8080 was already in use`). Only the host side moves; inside the container
+      # the daemon keeps its default. The RPC port stays 7077 — that is the one the workers and spark-submit use.
+      - "7080:8080"
       - "7077:7077"
     volumes:
       - ../spark-jobs:/opt/jobs
@@ -80,7 +84,8 @@ services:
     depends_on:
       - spark-master
     ports:
-      - "8081:8081"
+      # Worker UI, same reasoning as the master: host 8081 belongs to the analysis-worker (spec section 10).
+      - "7081:8081"
     volumes:
       - ../spark-jobs:/opt/jobs
       - sparkdata:/opt/bcosmos-data
