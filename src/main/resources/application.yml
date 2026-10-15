@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: miner
+  kafka:
+    bootstrap-servers: ${BCOSMOS_KAFKA_BOOTSTRAP:localhost:9092}
+    consumer:
+      group-id: bcosmos-miner
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+
+server:
+  port: ${SERVER_PORT:8082}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+bcosmos:
+  miner:
+    allowed-hosts: ${BCOSMOS_CORPUS_ALLOWED_HOSTS:github.com,gitlab.com}
+    clone-dir: ${BCOSMOS_MINER_CLONE_DIR:data/repos}
+    commit-window: ${BCOSMOS_MINER_COMMIT_WINDOW:50}
+    max-retry-attempts: ${BCOSMOS_MINER_MAX_RETRY:3}
+    initial-backoff-ms: ${BCOSMOS_MINER_INITIAL_BACKOFF_MS:500}
+    backoff-multiplier: ${BCOSMOS_MINER_BACKOFF_MULTIPLIER:2.0}
