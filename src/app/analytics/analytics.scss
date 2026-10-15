@@ -1,0 +1,299 @@
+/* The Analytics screen's own layout. Shared tokens and element styles live in src/styles.scss. */
+
+:host {
+  display: block;
+}
+
+.head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.snapshot {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  background: linear-gradient(135deg, var(--accent-soft), var(--surface-2));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.snapshot dt {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.snapshot dd {
+  margin: 0.15rem 0 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.provenance {
+  margin: 0 0 1rem;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.provenance strong {
+  color: var(--text);
+}
+
+.counter-hint {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.command {
+  display: block;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 1.25rem;
+  align-items: start;
+}
+
+/* The grid already spaces its cards, so a card inside it must not add a bottom margin of its own. */
+.chart-grid > .card {
+  margin-bottom: 0;
+}
+
+.chart {
+  position: relative;
+  height: 260px;
+  margin-bottom: 1rem;
+}
+
+.chart--tall {
+  height: 320px;
+}
+
+.chart canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.chart-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0.25rem 0 0.9rem;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.chart-note__swatch {
+  flex: none;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-top: 0.2rem;
+  border-radius: 3px;
+  border: 1px solid var(--border-strong);
+}
+
+.chart-note__swatch--lower-bound {
+  background: rgba(102, 112, 133, 0.45);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font: inherit;
+  padding: 0.3rem 0.6rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease;
+}
+
+.legend__item:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.legend__value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.inline-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+}
+
+.inline-stats dt {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.inline-stats dd {
+  margin: 0.15rem 0 0;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.cell-action {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.score {
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.detail-row td {
+  background: var(--surface-2);
+  padding: 0.9rem 1rem;
+}
+
+.detail-row:hover td {
+  background: var(--surface-2);
+}
+
+.component-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.component {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.7rem 0.85rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+}
+
+/* An unmeasured component is visibly not part of the score, rather than a component that scored zero. */
+.component--unmeasured {
+  border-left-style: dashed;
+  border-left-color: var(--border-strong);
+  background: repeating-linear-gradient(
+    135deg,
+    var(--surface-2),
+    var(--surface-2) 6px,
+    var(--surface) 6px,
+    var(--surface) 12px
+  );
+}
+
+.component__label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.component__raw {
+  font-weight: 650;
+}
+
+.component__scores,
+.component__note {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.section-heading {
+  margin: 1.25rem 0 0.6rem;
+}
+
+.stat-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.4rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stat-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.4rem 0.7rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+}
+
+.split-repositories {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.split-repositories li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.split-repositories__name {
+  font-weight: 600;
+}
+
+.drill {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-md);
+}
+
+@media (max-width: 720px) {
+  .chart-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chart,
+  .chart--tall {
+    height: 220px;
+  }
+}

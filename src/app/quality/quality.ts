@@ -11,6 +11,7 @@ import {
   isTerminalStatus,
 } from '../core/api/models';
 import { problemMessage } from '../core/api/problem';
+import { getLanguageSupport } from '../core/language-support';
 
 const POLL_INTERVAL_MS = 1000;
 const PAGE_SIZES = [10, 25, 50, 100];
@@ -51,6 +52,7 @@ export class Quality {
   protected readonly pageSizes = PAGE_SIZES;
   protected readonly formatInstant = formatInstant;
   protected readonly isTerminalStatus = isTerminalStatus;
+  protected readonly languageSupport = getLanguageSupport;
 
   /** Rule ids of the findings on screen, offered as suggestions because the filter matches them exactly. */
   protected readonly ruleSuggestions = computed(() =>

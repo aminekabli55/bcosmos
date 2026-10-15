@@ -1,0 +1,193 @@
+<div class="corpus-page">
+  <header class="page-header">
+    <div class="page-title">
+      <h1>Corpus Pipeline</h1>
+      <p class="subtitle">Mine public repositories asynchronously through Kafka and track commit ingestion</p>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn btn-secondary" (click)="refresh()" [disabled]="loading()">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+        </svg>
+        <span>Refresh</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Metric Overview Cards -->
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <span class="metric-label">Mined Repositories</span>
+      <span class="metric-value">{{ status()?.repositories ?? 0 }}</span>
+      <span class="metric-hint">Repositories in the training corpus</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-label">Commits Discovered</span>
+      <span class="metric-value">{{ status()?.commitsRecorded ?? 0 }}</span>
+      <span class="metric-hint">Analyzable commits recorded in Postgres</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-label">Pipeline Status</span>
+      <div class="status-indicator">
+        <span class="status-dot"></span>
+        <span class="status-text">Active (Kafka + Postgres)</span>
+      </div>
+      <span class="metric-hint">At-least-once with idempotent sinks</span>
+    </div>
+  </div>
+
+  <!-- Ingestion Form Card -->
+  <section class="card ingest-card" aria-labelledby="ingest-heading">
+    <div class="card-header">
+      <h2 id="ingest-heading">Ingest Repositories</h2>
+      <span class="tag">Allowlist Enforced</span>
+    </div>
+    <p class="card-description">
+      Submit public HTTPS repository URLs (one per line) from allowed hosts (e.g., github.com). The backend validates URLs,
+      creates repository entries, and notifies the miner to clone and walk commit history.
+    </p>
+
+    <form (ngSubmit)="submitIngest()" class="ingest-form">
+      <div class="form-row">
+        <label for="urls-input" class="form-label">Repository URLs (HTTPS, one per line)</label>
+        <textarea
+          id="urls-input"
+          name="urlsText"
+          [ngModel]="urlsText()"
+          (ngModelChange)="urlsText.set($event)"
+          rows="3"
+          placeholder="https://github.com/apache/commons-lang&#10;https://github.com/junit-team/junit5"
+          class="form-control code-input"
+          [disabled]="ingesting()"
+          required
+        ></textarea>
+      </div>
+
+      <div class="form-bottom-row">
+        <div class="form-group commit-window-group">
+          <label for="commit-window-input" class="form-label">Commit Window</label>
+          <input
+            id="commit-window-input"
+            type="number"
+            min="1"
+            max="1000"
+            name="commitWindow"
+            [ngModel]="commitWindow()"
+            (ngModelChange)="commitWindow.set($event)"
+            class="form-control"
+            [disabled]="ingesting()"
+          />
+          <span class="hint">Commits to walk back per repository</span>
+        </div>
+
+        <button type="submit" class="btn btn-primary" [disabled]="ingesting() || !urlsText().trim()">
+          <span *ngIf="ingesting()" class="spinner" aria-hidden="true"></span>
+          <span>{{ ingesting() ? 'Ingesting...' : 'Start Mining' }}</span>
+        </button>
+      </div>
+    </form>
+
+    <!-- Ingest Results Banner -->
+    <div *ngIf="ingestResult() as res" class="result-banner" role="status">
+      <div class="result-header">
+        <strong>Ingest Batch Summary</strong>
+        <button type="button" class="btn-icon" (click)="clearResult()" aria-label="Dismiss summary">&times;</button>
+      </div>
+      <div *ngIf="res.accepted.length > 0" class="accepted-section">
+        <span class="pill pill-ok">Accepted ({{ res.accepted.length }})</span>
+        <ul class="result-list">
+          <li *ngFor="let repo of res.accepted">
+            <code>{{ repo.remoteUrl }}</code>
+            <span *ngIf="repo.newlyRegistered" class="sub-tag">new</span>
+            <span *ngIf="!repo.newlyRegistered" class="sub-tag">already registered</span>
+          </li>
+        </ul>
+      </div>
+      <div *ngIf="res.rejected.length > 0" class="rejected-section">
+        <span class="pill pill-danger">Rejected ({{ res.rejected.length }})</span>
+        <ul class="result-list">
+          <li *ngFor="let reason of res.rejected">{{ reason }}</li>
+        </ul>
+      </div>
+    </div>
+
+    <div *ngIf="ingestError() as err" class="alert alert-danger" role="alert">
+      {{ err }}
+    </div>
+  </section>
+
+  <!-- Mined Repositories Table -->
+  <section class="card table-card" aria-labelledby="status-heading">
+    <div class="card-header">
+      <h2 id="status-heading">Corpus Progress</h2>
+      <span *ngIf="status() as s" class="count-badge">{{ s.items.length }} repositories</span>
+    </div>
+
+    <div *ngIf="loading()" class="loading-state">
+      <div class="spinner-large" aria-hidden="true"></div>
+      <p>Loading corpus status from Postgres...</p>
+    </div>
+
+    <div *ngIf="error() as err" class="alert alert-danger" role="alert">
+      {{ err }}
+    </div>
+
+    <div *ngIf="!loading() && !error() && (status()?.items?.length ?? 0) === 0" class="empty-state">
+      <div class="empty-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5z" />
+          <path d="M6 6h10M6 10h10M6 14h6" />
+        </svg>
+      </div>
+      <h3>No mined repositories yet</h3>
+      <p>Submit public repository URLs above to start mining commit records and building the training corpus.</p>
+    </div>
+
+    <div *ngIf="!loading() && !error() && (status()?.items?.length ?? 0) > 0" class="table-responsive">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th scope="col">Repository</th>
+            <th scope="col">Remote URL</th>
+            <th scope="col">Status</th>
+            <th scope="col">Commits Recorded</th>
+            <th scope="col">Latest Commit</th>
+            <th scope="col">Last Recorded At</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of status()!.items">
+            <td>
+              <div class="repo-cell">
+                <span class="repo-icon" aria-hidden="true">M</span>
+                <span class="repo-name">{{ item.name }}</span>
+              </div>
+            </td>
+            <td>
+              <a [href]="item.remoteUrl" target="_blank" rel="noopener noreferrer" class="link-external">
+                {{ item.remoteUrl }}
+              </a>
+            </td>
+            <td>
+              <span class="badge badge-status" [class.badge-ok]="item.status === 'REGISTERED'">
+                {{ item.status }}
+              </span>
+            </td>
+            <td>
+              <span class="badge-count">{{ item.commitsRecorded }}</span>
+            </td>
+            <td>
+              <code *ngIf="item.latestCommitHash" class="commit-hash" title="{{ item.latestCommitHash }}">
+                {{ item.latestCommitHash.substring(0, 7) }}
+              </code>
+              <span *ngIf="!item.latestCommitHash" class="text-muted">—</span>
+            </td>
+            <td>
+              <span class="date-text">{{ formatInstant(item.latestCommitAt ?? null) }}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>

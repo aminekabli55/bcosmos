@@ -1,0 +1,278 @@
+<section class="card">
+  <div class="card__head">
+    <div>
+      <h1>Settings</h1>
+      <p class="card__subtitle">The AI layer and the models it may call. Nothing is ever sent to a provider.</p>
+    </div>
+  </div>
+
+  @if (aiError()) {
+    <div class="notice notice--error" role="alert">{{ aiError() }}</div>
+  }
+
+  @if (aiLoading() && !ai()) {
+    <p class="state">Loading the AI switch…</p>
+  } @else if (ai(); as settings) {
+    <div class="ai-panel" [class.ai-panel--on]="settings.enabled">
+      <div class="ai-panel__text">
+        <h2>AI layer {{ settings.enabled ? 'on' : 'off' }}</h2>
+        <p class="card__subtitle">
+          @if (settings.overridden) {
+            Set here and stored in the database
+            @if (settings.updatedAt) {
+              <span class="muted">· {{ formatInstant(settings.updatedAt) }}</span>
+            }
+          } @else {
+            Following the deployment default (<span class="mono">bcosmos.ai.enabled</span> = {{ settings.propertyDefault }})
+          }
+        </p>
+        <p class="hint">
+          When the layer is on, only the snippets a model needs are sent, and only to models you enable below
+          (spec §10). Turning it off leaves analysis and the registry fully usable.
+        </p>
+      </div>
+
+      <div class="ai-panel__controls">
+        <label class="switch">
+          <input
+            class="switch__input"
+            type="checkbox"
+            [checked]="settings.enabled"
+            [disabled]="aiSaving()"
+            (change)="onAiToggle($event)"
+          />
+          <span class="switch__track" aria-hidden="true"><span class="switch__knob"></span></span>
+          <span class="switch__label" [class.switch__label--on]="settings.enabled">
+            {{ settings.enabled ? 'On' : 'Off' }}
+          </span>
+        </label>
+
+        @if (settings.overridden) {
+          <button type="button" class="button button--ghost button--sm" [disabled]="aiSaving()"
+            (click)="useDeploymentDefault()">
+            Follow deployment default
+          </button>
+        }
+      </div>
+    </div>
+
+    @if (settings.enabled) {
+      <div class="notice notice--warn">
+        Code snippets leave this machine when a model runs. Every model below is opt-in, and secrets are redacted
+        before a prompt is built.
+      </div>
+    }
+  }
+</section>
+
+<section class="card">
+  <div class="card__head">
+    <div>
+      <h2>Provider keys</h2>
+      <p class="card__subtitle">Read from the backend environment. Never stored, never sent to the browser.</p>
+    </div>
+  </div>
+
+  @if (modelsLoading() && models().length === 0) {
+    <p class="state">Loading providers…</p>
+  } @else if (credentials().length === 0) {
+    <p class="state">No provider is referenced by the registry yet.</p>
+  } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Provider</th>
+            <th>Environment variable</th>
+            <th>Models</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (credential of credentials(); track credential.provider) {
+            <tr>
+              <td class="mono">{{ credential.provider }}</td>
+              <td class="mono muted">{{ credential.environmentVariable ?? '—' }}</td>
+              <td class="num">{{ credential.models }}</td>
+              <td>
+                @if (credential.configured) {
+                  <span class="badge badge--run-SUCCEEDED">key present</span>
+                } @else {
+                  <span class="badge badge--run-PENDING">no key</span>
+                  <span class="muted"> set it in the backend environment to enable these models</span>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
+
+<section class="card">
+  <div class="card__head">
+    <div>
+      <h2>Model registry</h2>
+      <p class="card__subtitle">Enable a model before it can be called, and choose the default.</p>
+    </div>
+    <button type="button" class="button button--ghost" (click)="loadModels()">Refresh</button>
+  </div>
+
+  @if (modelsError()) {
+    <div class="notice notice--error" role="alert">{{ modelsError() }}</div>
+  }
+
+  @if (modelsLoading() && models().length === 0) {
+    <p class="state">Loading models…</p>
+  } @else if (models().length === 0) {
+    <div class="empty-state">
+      <strong>No models registered</strong>
+      <span>The registry is seeded by the backend changelog.</span>
+    </div>
+  } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>Provider</th>
+            <th>Cheapest</th>
+            <th>Credential</th>
+            <th>Enabled</th>
+            <th>Default</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (model of models(); track model.id) {
+            <tr [class.is-selected]="model.defaultModel">
+              <td>
+                <span class="model-name mono">{{ model.modelName }}</span>
+                @if (model.notes) {
+                  <span class="model-notes muted">{{ model.notes }}</span>
+                }
+              </td>
+              <td class="muted">
+                {{ model.provider }} · {{ model.kind }} ·
+                @if (model.capability === 'EMBEDDING') {
+                  <span class="badge badge--plain">embedding {{ model.embeddingDimension }}d</span>
+                } @else {
+                  <span class="badge badge--plain">chat</span>
+                }
+              </td>
+              <td class="muted nowrap">
+                <span class="price">{{ formatPrice(model.costPer1kIn) }}</span> in /
+                <span class="price">{{ formatPrice(model.costPer1kOut) }}</span> out
+                <span class="muted">· {{ model.contextWindow }} ctx</span>
+              </td>
+              <td>
+                @if (model.credentialConfigured) {
+                  <span class="badge badge--run-SUCCEEDED">present</span>
+                } @else {
+                  <span class="badge badge--run-PENDING" [title]="model.credentialEnvironmentVariable ?? ''">
+                    missing
+                  </span>
+                }
+              </td>
+              <td>
+                <label class="switch switch--sm">
+                  <input
+                    class="switch__input model-enabled"
+                    type="checkbox"
+                    [attr.aria-label]="'Enable ' + model.modelName"
+                    [checked]="model.enabled"
+                    [disabled]="modelBusyId() === model.id"
+                    (change)="onModelToggle(model, $event)"
+                  />
+                  <span class="switch__track" aria-hidden="true"><span class="switch__knob"></span></span>
+                </label>
+              </td>
+              <td>
+                @if (model.defaultModel) {
+                  <span class="badge badge--run-ANALYSED">default</span>
+                } @else {
+                  <button type="button" class="button button--ghost button--sm"
+                    [disabled]="modelBusyId() === model.id" (click)="makeDefault(model)">
+                    Make default
+                  </button>
+                }
+              </td>
+              <td class="actions">
+                <button type="button" class="button button--ghost button--sm" (click)="startEdit(model)">
+                  Edit
+                </button>
+              </td>
+            </tr>
+
+            @if (editingId() === model.id && draft(); as draft) {
+              <tr class="editor-row">
+                <td colspan="7">
+                  <div class="editor">
+                    <div class="field">
+                      <label [attr.for]="'context-' + model.id">Context window</label>
+                      <input
+                        [id]="'context-' + model.id"
+                        class="input mono"
+                        type="number"
+                        min="1"
+                        [value]="draft.contextWindow"
+                        (input)="onDraftInput('contextWindow', $event)"
+                      />
+                    </div>
+                    <div class="field">
+                      <label [attr.for]="'cost-in-' + model.id">Cost / 1k in</label>
+                      <input
+                        [id]="'cost-in-' + model.id"
+                        class="input mono"
+                        type="number"
+                        min="0"
+                        step="0.000001"
+                        [value]="draft.costPer1kIn"
+                        (input)="onDraftInput('costPer1kIn', $event)"
+                      />
+                    </div>
+                    <div class="field">
+                      <label [attr.for]="'cost-out-' + model.id">Cost / 1k out</label>
+                      <input
+                        [id]="'cost-out-' + model.id"
+                        class="input mono"
+                        type="number"
+                        min="0"
+                        step="0.000001"
+                        [value]="draft.costPer1kOut"
+                        (input)="onDraftInput('costPer1kOut', $event)"
+                      />
+                    </div>
+                    <div class="field grow">
+                      <label [attr.for]="'notes-' + model.id">Notes</label>
+                      <input
+                        [id]="'notes-' + model.id"
+                        class="input"
+                        type="text"
+                        [value]="draft.notes"
+                        (input)="onDraftInput('notes', $event)"
+                      />
+                    </div>
+                    <div class="editor__actions">
+                      <button type="button" class="button" [disabled]="modelBusyId() === model.id"
+                        (click)="saveEdit(model)">
+                        Save
+                      </button>
+                      <button type="button" class="button button--ghost" (click)="cancelEdit()">Cancel</button>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <p class="hint">
+      Prices are estimates per 1000 tokens and are what the cost column of a model call is based on. They are not
+      billing data.
+    </p>
+  }
+</section>

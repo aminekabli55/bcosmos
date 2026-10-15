@@ -1,17 +1,35 @@
 @if (analysisId() === null) {
   <section class="card">
-    <h1>Quality</h1>
-    <p class="state">
-      No analysis run selected. Open a run from <a routerLink="/repositories">Repositories</a> to see its findings.
-    </p>
+    <div class="empty-state">
+      <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z" />
+        <path d="M9 11.5l2 2 4-4" />
+      </svg>
+      <h1>Quality</h1>
+      <span>No analysis run selected.</span>
+      <span>Open a run from <a routerLink="/repositories">Repositories</a> to see its findings.</span>
+    </div>
   </section>
 } @else {
   <section class="card">
     <div class="card__head">
-      <h1>Analysis run #{{ analysisId() }}</h1>
+      <div>
+        <p class="breadcrumb">
+          <a routerLink="/repositories">Repositories</a>
+          <span aria-hidden="true">/</span>
+          <span>Run #{{ analysisId() }}</span>
+        </p>
+        <h1>Analysis run #{{ analysisId() }}</h1>
+        @if (run(); as run) {
+          <p class="card__subtitle">
+            <span class="badge" [class]="'badge badge--run-' + run.status">{{ run.status }}</span>
+            <span class="stage">{{ run.stage }}</span>
+          </p>
+        }
+      </div>
       <div class="head-actions">
         @if (!run() || !isTerminalStatus(run()!.status)) {
-          <span class="muted">polling…</span>
+          <span class="muted polling">polling…</span>
         }
         <button type="button" class="button button--ghost" (click)="reloadRun()">Refresh</button>
       </div>
@@ -41,7 +59,7 @@
         </div>
         <div>
           <dt>Parse failures</dt>
-          <dd>{{ run.filesFailed }}</dd>
+          <dd [class.text-danger]="run.filesFailed > 0">{{ run.filesFailed }}</dd>
         </div>
         <div>
           <dt>Findings</dt>
@@ -53,11 +71,11 @@
         </div>
         <div>
           <dt>Started</dt>
-          <dd>{{ formatInstant(run.startedAt) }}</dd>
+          <dd class="stamp">{{ formatInstant(run.startedAt) }}</dd>
         </div>
         <div>
           <dt>Finished</dt>
-          <dd>{{ formatInstant(run.finishedAt) }}</dd>
+          <dd class="stamp">{{ formatInstant(run.finishedAt) }}</dd>
         </div>
         <div>
           <dt>Parser</dt>
@@ -82,43 +100,58 @@
 
   <section class="card">
     <div class="card__head">
-      <h2>Files that failed to parse ({{ failures().length }})</h2>
-      <span class="muted">counted in the run, never hidden</span>
+      <div>
+        <h2>Files that failed to parse ({{ failures().length }})</h2>
+        <p class="card__subtitle">Counted in the run, never hidden.</p>
+      </div>
     </div>
 
     @if (failures().length === 0) {
       <p class="state">No parse failures recorded for this run.</p>
     } @else {
-      <table>
-        <thead>
-          <tr>
-            <th>File</th>
-            <th>Language</th>
-            <th>Lines</th>
-            <th>Error</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (failure of failures(); track failure.id) {
+      <div class="table-wrap">
+        <table>
+          <thead>
             <tr>
-              <td class="mono">{{ failure.filePath }}</td>
-              <td class="muted">{{ failure.language ?? '—' }}</td>
-              <td class="muted">{{ failure.lineCount }}</td>
-              <td>
-                <div class="parse-error" [title]="failure.parseError ?? 'parse failed'">
-                  {{ failure.parseError ?? 'parse failed' }}
-                </div>
-              </td>
+              <th>File</th>
+              <th>Language</th>
+              <th>Lines</th>
+              <th>Error</th>
             </tr>
-          }
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            @for (failure of failures(); track failure.id) {
+              <tr>
+                <td class="mono">{{ failure.filePath }}</td>
+                <td>
+                  @if (failure.language) {
+                    <span class="badge" [class]="languageSupport(failure.language).badgeClass" [title]="languageSupport(failure.language).levelLabel">
+                      {{ languageSupport(failure.language).name }} · L{{ languageSupport(failure.language).level }}
+                    </span>
+                  } @else {
+                    <span class="muted">—</span>
+                  }
+                </td>
+                <td class="muted">{{ failure.lineCount }}</td>
+                <td>
+                  <div class="parse-error" [title]="failure.parseError ?? 'parse failed'">
+                    {{ failure.parseError ?? 'parse failed' }}
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
     }
   </section>
 
   <section class="card">
     <div class="card__head">
-      <h2>Findings ({{ totalItems() }})</h2>
+      <div>
+        <h2>Findings ({{ totalItems() }})</h2>
+        <p class="card__subtitle">Select a row to read the code it was found in.</p>
+      </div>
       <button type="button" class="button button--ghost" (click)="clearFilters()">Clear filters</button>
     </div>
 
@@ -172,46 +205,54 @@
     @if (findingsLoading() && findings().length === 0) {
       <p class="state">Loading findings…</p>
     } @else if (findings().length === 0) {
-      <p class="state">No findings match these filters.</p>
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="7" />
+          <path d="M20 20l-3.5-3.5" />
+        </svg>
+        <strong>No findings match these filters.</strong>
+      </div>
     } @else {
       <div class="findings-layout">
-        <div>
-          <table>
-            <thead>
-              <tr>
-                <th>Severity</th>
-                <th>Rule</th>
-                <th>Message</th>
-                <th>File</th>
-                <th>Lines</th>
-                <th>Symbol</th>
-                <th>Triage</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (finding of findings(); track finding.id) {
-                <tr
-                  class="clickable"
-                  [class.is-selected]="selected()?.id === finding.id"
-                  (click)="select(finding)"
-                  (keydown.enter)="select(finding)"
-                  tabindex="0"
-                >
-                  <td>
-                    <span class="badge" [class]="'badge badge--severity-' + finding.severity">{{
-                      finding.severity
-                    }}</span>
-                  </td>
-                  <td class="mono">{{ finding.ruleId }}</td>
-                  <td>{{ finding.message ?? '—' }}</td>
-                  <td class="mono">{{ finding.filePath ?? '—' }}</td>
-                  <td class="muted">{{ finding.startLine }}–{{ finding.endLine }}</td>
-                  <td class="mono muted">{{ finding.symbolQualifiedName ?? '—' }}</td>
-                  <td class="muted">{{ finding.triageStatus }}</td>
+        <div class="findings-list">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Severity</th>
+                  <th>Rule</th>
+                  <th>Message</th>
+                  <th>File</th>
+                  <th>Lines</th>
+                  <th>Symbol</th>
+                  <th>Triage</th>
                 </tr>
-              }
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                @for (finding of findings(); track finding.id) {
+                  <tr
+                    class="clickable"
+                    [class.is-selected]="selected()?.id === finding.id"
+                    (click)="select(finding)"
+                    (keydown.enter)="select(finding)"
+                    tabindex="0"
+                  >
+                    <td>
+                      <span class="badge" [class]="'badge badge--severity-' + finding.severity">{{
+                        finding.severity
+                      }}</span>
+                    </td>
+                    <td class="mono">{{ finding.ruleId }}</td>
+                    <td class="cell-message">{{ finding.message ?? '—' }}</td>
+                    <td class="mono">{{ finding.filePath ?? '—' }}</td>
+                    <td class="muted">{{ finding.startLine }}–{{ finding.endLine }}</td>
+                    <td class="mono muted">{{ finding.symbolQualifiedName ?? '—' }}</td>
+                    <td class="muted">{{ finding.triageStatus }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
 
           <div class="pager">
             <button type="button" class="button button--ghost" [disabled]="page() === 0" (click)="previousPage()">
@@ -237,13 +278,21 @@
 
         @if (selected(); as finding) {
           <aside class="preview">
-            <h3>Evidence</h3>
-            <p class="mono">{{ finding.filePath ?? '—' }}:{{ finding.startLine }}</p>
-            <p class="muted">
+            <div class="preview__head">
+              <h3>Evidence</h3>
+              <span class="badge" [class]="'badge badge--severity-' + finding.severity">{{ finding.severity }}</span>
+            </div>
+            <p class="preview__file mono">{{ finding.filePath ?? '—' }}:{{ finding.startLine }}</p>
+            <p class="muted preview__meta">
               {{ finding.ruleId }} · {{ finding.tool ?? 'tool' }} {{ finding.toolVersion ?? '' }} · normalized
               {{ finding.severity }} (was {{ finding.originalSeverity ?? '—' }})
             </p>
             <p class="muted mono fingerprint">fingerprint {{ finding.fingerprint }}</p>
+            <a
+              class="button button--ghost button--sm preview__ai"
+              [routerLink]="['/quality', analysisId(), 'findings', finding.id, 'review']"
+              >Ask AI for a fix</a
+            >
             @if (preview(); as lines) {
               <div class="source">
                 @for (line of lines; track line.number) {

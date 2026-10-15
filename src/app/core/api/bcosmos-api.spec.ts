@@ -63,4 +63,77 @@ describe('BcosmosApi', () => {
     expect(request.request.params.get('parseStatus')).toBe('FAILED');
     request.flush({ items: [], page: 0, size: 50, totalItems: 0, totalPages: 0, hasNext: false });
   });
+
+  it('lists the model registry with pagination', () => {
+    api.listModels(1, 10).subscribe();
+    const request = http.expectOne((candidate) => candidate.url === '/api/models');
+    expect(request.request.method).toBe('GET');
+    expect(request.request.params.get('page')).toBe('1');
+    expect(request.request.params.get('size')).toBe('10');
+    request.flush({ items: [], page: 1, size: 10, totalItems: 0, totalPages: 0, hasNext: false });
+  });
+
+  it('sends only the registry fields that were edited', () => {
+    api.updateModel(7, { enabled: true }).subscribe();
+    const request = http.expectOne('/api/models/7');
+    expect(request.request.method).toBe('PUT');
+    // A missing field means "leave it", so flipping one switch cannot overwrite prices.
+    expect(request.request.body).toEqual({ enabled: true });
+    request.flush({});
+  });
+
+  it('reads the AI master switch', () => {
+    api.getAiSettings().subscribe();
+    const request = http.expectOne('/api/settings/ai');
+    expect(request.request.method).toBe('GET');
+    request.flush({ enabled: false, propertyDefault: true, overridden: true, updatedAt: null });
+  });
+
+  it('stores the AI master switch and can hand the decision back to the deployment', () => {
+    api.updateAiSettings(null).subscribe();
+    const request = http.expectOne('/api/settings/ai');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual({ enabled: null });
+    request.flush({ enabled: true, propertyDefault: true, overridden: false, updatedAt: null });
+  });
+
+  it('reads the analytics overview without parameters', () => {
+    api.getAnalyticsOverview().subscribe();
+    const request = http.expectOne('/api/analytics/overview');
+    expect(request.request.method).toBe('GET');
+    request.flush({});
+  });
+
+  it('sends only the drill-down dimensions that were set', () => {
+    api.listAnalyticsFindings({ repositoryId: 3, ruleId: 'EmptyCatchBlock', severity: 'HIGH', page: 1 }).subscribe();
+    const request = http.expectOne((candidate) => candidate.url === '/api/analytics/findings');
+    expect(request.request.params.get('repositoryId')).toBe('3');
+    expect(request.request.params.get('ruleId')).toBe('EmptyCatchBlock');
+    expect(request.request.params.get('severity')).toBe('HIGH');
+    expect(request.request.params.get('page')).toBe('1');
+    expect(request.request.params.has('filePath')).toBe(false);
+    expect(request.request.params.has('from')).toBe(false);
+    request.flush({ items: [], page: 1, size: 50, totalItems: 0, totalPages: 0, hasNext: false });
+  });
+
+  it('asks the trend endpoint for one page of a whole window', () => {
+    api.listTrends({ repositoryId: 2 }).subscribe();
+    const request = http.expectOne((candidate) => candidate.url === '/api/analytics/trends');
+    // The weeks of a repository fit one page; the default keeps the chart from being drawn from a truncated series.
+    expect(request.request.params.get('size')).toBe('100');
+    expect(request.request.params.get('page')).toBe('0');
+    request.flush({ items: [], page: 0, size: 100, totalItems: 0, totalPages: 0, hasNext: false });
+  });
+
+  it('lists the dataset splits and the repositories of one split', () => {
+    api.listDatasetSplits().subscribe();
+    const splits = http.expectOne((candidate) => candidate.url === '/api/analytics/dataset/splits');
+    expect(splits.request.params.get('page')).toBe('0');
+    splits.flush({ items: [], page: 0, size: 10, totalItems: 0, totalPages: 0, hasNext: false });
+
+    api.listDatasetRepositories('train').subscribe();
+    const repositories = http.expectOne((candidate) => candidate.url === '/api/analytics/dataset/repositories');
+    expect(repositories.request.params.get('split')).toBe('train');
+    repositories.flush({ items: [], page: 0, size: 50, totalItems: 0, totalPages: 0, hasNext: false });
+  });
 });

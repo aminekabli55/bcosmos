@@ -1,0 +1,421 @@
+<div class="cosmos-page">
+  <!-- Top Navigation & Controls Header -->
+  <header class="cosmos-header">
+    <div class="header-left">
+      <div class="title-group">
+        <h1 class="page-title">
+          <span class="cosmos-glyph" aria-hidden="true">🪐</span>
+          Code Cosmos
+        </h1>
+        <p class="page-subtitle">Interactive symbol architecture, dependency graph, and blast-radius analysis</p>
+      </div>
+
+      <div class="run-selectors">
+        <div class="selector-field">
+          <label for="repo-select">Repository</label>
+          <select
+            id="repo-select"
+            class="input-select"
+            [ngModel]="selectedRepoId()"
+            (ngModelChange)="onRepoChange($event)"
+          >
+            <option *ngFor="let repo of repositories()" [value]="repo.id">
+              {{ repo.name }} ({{ repo.primaryLanguage || 'generic' }})
+            </option>
+          </select>
+        </div>
+
+        <div class="selector-field" *ngIf="analyses().length > 0">
+          <label for="analysis-select">Analysis Run</label>
+          <select
+            id="analysis-select"
+            class="input-select"
+            [ngModel]="selectedAnalysisId()"
+            (ngModelChange)="onAnalysisChange($event)"
+          >
+            <option *ngFor="let run of analyses()" [value]="run.id">
+              #{{ run.id }} — {{ run.commitHash ? (run.commitHash | slice: 0 : 7) : 'head' }} ({{ formatInstant(run.createdAt) }})
+            </option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <!-- View mode switch -->
+      <div class="view-toggle" role="tablist" aria-label="Cosmos view options">
+        <button
+          type="button"
+          class="toggle-btn"
+          [class.active]="activeView() === 'canvas'"
+          (click)="setActiveView('canvas')"
+          role="tab"
+          [attr.aria-selected]="activeView() === 'canvas'"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="6" cy="6" r="3" />
+            <circle cx="18" cy="18" r="3" />
+            <circle cx="18" cy="6" r="3" />
+            <line x1="8.5" y1="7.5" x2="15.5" y2="16.5" />
+            <line x1="9" y1="6" x2="15" y2="6" />
+          </svg>
+          Interactive Canvas
+        </button>
+        <button
+          type="button"
+          class="toggle-btn"
+          [class.active]="activeView() === 'table'"
+          (click)="setActiveView('table')"
+          role="tab"
+          [attr.aria-selected]="activeView() === 'table'"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <line x1="3" y1="9" x2="21" y2="9" />
+            <line x1="3" y1="15" x2="21" y2="15" />
+            <line x1="9" y1="3" x2="9" y2="21" />
+          </svg>
+          Accessible Table
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Toolbar & Filters -->
+  <section class="cosmos-toolbar" aria-label="Graph controls and search">
+    <div class="search-box">
+      <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+      <input
+        type="search"
+        class="search-input"
+        placeholder="Filter symbol, package, or file path..."
+        [ngModel]="searchQuery()"
+        (ngModelChange)="onSearchChange($event)"
+      />
+    </div>
+
+    <div class="filter-controls">
+      <div class="control-item">
+        <label for="kind-filter">Kind:</label>
+        <select
+          id="kind-filter"
+          class="control-select"
+          [ngModel]="selectedKindFilter()"
+          (ngModelChange)="selectedKindFilter.set($event)"
+        >
+          <option value="ALL">All Types</option>
+          <option value="CLASS">Classes</option>
+          <option value="INTERFACE">Interfaces</option>
+          <option value="RECORD">Records</option>
+          <option value="ENUM">Enums</option>
+          <option value="METHOD">Methods</option>
+        </select>
+      </div>
+
+      <div class="control-item" *ngIf="activeView() === 'canvas'">
+        <label for="layout-filter">Layout:</label>
+        <select
+          id="layout-filter"
+          class="control-select"
+          [ngModel]="selectedLayout()"
+          (ngModelChange)="changeLayout($event)"
+        >
+          <option value="cose">Force-Directed (CoSE)</option>
+          <option value="concentric">Concentric (Hotspots)</option>
+          <option value="breadthfirst">Hierarchical</option>
+          <option value="circle">Circular</option>
+        </select>
+      </div>
+
+      <div class="control-item">
+        <label for="max-nodes">Max Nodes:</label>
+        <select
+          id="max-nodes"
+          class="control-select"
+          [ngModel]="maxNodes()"
+          (ngModelChange)="maxNodes.set($event); selectedAnalysisId() && loadAnalysisGraph(selectedAnalysisId()!)"
+        >
+          <option [value]="100">100</option>
+          <option [value]="200">200</option>
+          <option [value]="500">500</option>
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <!-- Error or Loading State -->
+  <div class="alert-banner alert-banner--error" *ngIf="error()">
+    <span>{{ error() }}</span>
+  </div>
+
+  <div class="loading-state" *ngIf="loading()">
+    <div class="spinner" aria-hidden="true"></div>
+    <p>Calculating symbol call graph, dependencies, and hotspot scores...</p>
+  </div>
+
+  <!-- Truncation / Bounded Guard Banner -->
+  <div class="banner-truncated" *ngIf="graphData()?.truncated && !loading()">
+    <span class="warning-icon" aria-hidden="true">⚡</span>
+    <span>
+      <strong>Server Bounded Response:</strong> Displaying {{ graphData()?.nodes?.length }} of {{ graphData()?.totalNodes }} symbols
+      and {{ graphData()?.edges?.length }} of {{ graphData()?.totalEdges }} dependencies.
+      Resolution Rate: {{ ((graphData()?.resolutionRate || 0) * 100).toFixed(1) }}% ({{ graphData()?.unresolvedEdgesCount }} external/unresolved edges).
+    </span>
+  </div>
+
+  <!-- Main Workspace -->
+  <div class="cosmos-content" *ngIf="!loading() && graphData()">
+    
+    <!-- CANVAS VIEW -->
+    <div class="canvas-wrapper" [class.hidden]="activeView() !== 'canvas'">
+      <div #cyContainer class="cy-canvas" aria-label="Interactive symbol dependency graph"></div>
+
+      <!-- Floating Controls inside Canvas -->
+      <div class="canvas-floating-controls">
+        <button type="button" class="fab-btn" (click)="zoomIn()" title="Zoom In" aria-label="Zoom in">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        </button>
+        <button type="button" class="fab-btn" (click)="zoomOut()" title="Zoom Out" aria-label="Zoom out">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2">
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+        </button>
+        <button type="button" class="fab-btn" (click)="fitView()" title="Fit to View" aria-label="Fit graph to viewport">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 3 21 3 21 9" />
+            <polyline points="9 21 3 21 3 15" />
+            <line x1="21" y1="3" x2="14" y2="10" />
+            <line x1="3" y1="21" x2="10" y2="14" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Canvas Legend -->
+      <aside class="canvas-legend" aria-label="Graph legend">
+        <div class="legend-group">
+          <span class="legend-title">Nodes</span>
+          <span class="legend-item"><span class="dot dot--class"></span> Class</span>
+          <span class="legend-item"><span class="dot dot--interface"></span> Interface</span>
+          <span class="legend-item"><span class="dot dot--record"></span> Record</span>
+          <span class="legend-item"><span class="dot dot--enum"></span> Enum</span>
+          <span class="legend-item"><span class="dot dot--external"></span> External</span>
+        </div>
+        <div class="legend-group">
+          <span class="legend-title">Edges</span>
+          <span class="legend-item"><span class="line line--calls"></span> CALLS</span>
+          <span class="legend-item"><span class="line line--extends"></span> EXTENDS</span>
+          <span class="legend-item"><span class="line line--implements"></span> IMPLEMENTS</span>
+          <span class="legend-item"><span class="line line--unresolved"></span> UNRESOLVED (dashed)</span>
+        </div>
+      </aside>
+    </div>
+
+    <!-- ACCESSIBLE TABLE VIEW -->
+    <div class="table-wrapper" *ngIf="activeView() === 'table'">
+      <div class="table-card">
+        <table class="symbols-table" aria-label="Symbol Dependency and Quality Metrics">
+          <thead>
+            <tr>
+              <th scope="col" (click)="toggleTableSort('name')">
+                Symbol Name
+                <span class="sort-indicator" *ngIf="tableSortKey() === 'name'">{{ tableSortDesc() ? '▼' : '▲' }}</span>
+              </th>
+              <th scope="col">Kind</th>
+              <th scope="col">Package / File</th>
+              <th scope="col" class="num-col" (click)="toggleTableSort('lineCount')">
+                Lines
+                <span class="sort-indicator" *ngIf="tableSortKey() === 'lineCount'">{{ tableSortDesc() ? '▼' : '▲' }}</span>
+              </th>
+              <th scope="col" class="num-col" (click)="toggleTableSort('findingsCount')">
+                Findings
+                <span class="sort-indicator" *ngIf="tableSortKey() === 'findingsCount'">{{ tableSortDesc() ? '▼' : '▲' }}</span>
+              </th>
+              <th scope="col" class="num-col" (click)="toggleTableSort('score')">
+                Hotspot Score
+                <span class="sort-indicator" *ngIf="tableSortKey() === 'score'">{{ tableSortDesc() ? '▼' : '▲' }}</span>
+              </th>
+              <th scope="col" class="action-col">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let node of sortedTableSymbols()" [class.selected]="selectedNode()?.id === node.id">
+              <td>
+                <div class="symbol-name-cell">
+                  <span class="kind-tag" [attr.data-kind]="node.kind">{{ node.kind }}</span>
+                  <strong class="symbol-title">{{ node.name }}</strong>
+                </div>
+              </td>
+              <td>{{ node.kind }}</td>
+              <td>
+                <span class="file-path-text" title="{{ node.filePath }}">{{ node.filePath }}</span>
+              </td>
+              <td class="num-col">{{ node.lineCount }}</td>
+              <td class="num-col">
+                <span class="findings-badge" [class.has-findings]="node.findingsCount > 0">
+                  {{ node.findingsCount }}
+                </span>
+              </td>
+              <td class="num-col">
+                <span class="hotspot-badge" [class.high-score]="node.hotspotScore >= 50">
+                  {{ node.hotspotScore.toFixed(1) }}
+                </span>
+              </td>
+              <td class="action-col">
+                <button type="button" class="btn-inspect" (click)="selectNode(node)">
+                  Inspect Impact
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SIDE PANEL (Hotspots & Symbol Inspector) -->
+    <aside class="cosmos-sidebar" aria-label="Symbol details and hotspots panel">
+      
+      <!-- SELECTED NODE INSPECTOR DRAWER -->
+      <div class="sidebar-card symbol-inspector" *ngIf="selectedNode() as node">
+        <div class="card-header">
+          <div class="card-title-group">
+            <span class="kind-pill" [attr.data-kind]="node.kind">{{ node.kind }}</span>
+            <h3 class="symbol-name">{{ node.name }}</h3>
+          </div>
+          <button type="button" class="btn-close" (click)="clearSelection()" aria-label="Close inspector">✕</button>
+        </div>
+
+        <div class="card-body">
+          <p class="symbol-qname"><code>{{ node.qualifiedName }}</code></p>
+          <div class="meta-row">
+            <span class="meta-label">File:</span>
+            <span class="meta-val">{{ node.filePath }} ({{ node.lineCount }} lines)</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Package:</span>
+            <span class="meta-val">{{ node.packageName || 'default' }}</span>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-pill">
+              <span class="stat-num">{{ node.findingsCount }}</span>
+              <span class="stat-lbl">Findings</span>
+            </div>
+            <div class="stat-pill">
+              <span class="stat-num">{{ node.hotspotScore.toFixed(1) }}</span>
+              <span class="stat-lbl">Hotspot Score</span>
+            </div>
+          </div>
+
+          <div class="findings-link-box" *ngIf="node.findingsCount > 0 && selectedAnalysisId()">
+            <a [routerLink]="['/quality', selectedAnalysisId()]" [queryParams]="{ file: node.filePath }" class="link-findings">
+              View {{ node.findingsCount }} quality findings in this file →
+            </a>
+          </div>
+
+          <!-- Impact Blast Radius Section -->
+          <div class="impact-section">
+            <button
+              type="button"
+              class="btn-blast-radius"
+              [disabled]="impactLoading()"
+              (click)="runImpactAnalysis(node.id)"
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              {{ impactLoading() ? 'Analyzing Blast Radius...' : 'Calculate Blast Radius' }}
+            </button>
+
+            <div class="impact-error" *ngIf="impactError()">{{ impactError() }}</div>
+
+            <!-- Impact Results -->
+            <div class="impact-results" *ngIf="impactData() as impact">
+              <div class="impact-risk-badge" [attr.data-risk]="impact.riskRating">
+                <span class="risk-label">Blast Risk Rating:</span>
+                <strong class="risk-value">{{ impact.riskRating }}</strong>
+              </div>
+
+              <div class="impact-counters">
+                <div class="impact-counter">
+                  <span class="count">{{ impact.directDependentsCount }}</span>
+                  <span class="lbl">Direct Dependents</span>
+                </div>
+                <div class="impact-counter">
+                  <span class="count">{{ impact.transitiveDependentsCount }}</span>
+                  <span class="lbl">Transitive (Blast Radius)</span>
+                </div>
+                <div class="impact-counter">
+                  <span class="count">{{ impact.affectedFindingsCount }}</span>
+                  <span class="lbl">Affected Findings</span>
+                </div>
+              </div>
+
+              <div class="dependent-list" *ngIf="impact.directDependents.length > 0">
+                <span class="dependent-heading">Direct Callers & Importers:</span>
+                <ul>
+                  <li *ngFor="let dep of impact.directDependents">
+                    <code>{{ dep.name }}</code> ({{ dep.filePath }})
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TOP HOTSPOTS HEURISTIC PANEL -->
+      <div class="sidebar-card hotspots-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <span class="hotspot-flame" aria-hidden="true">🔥</span>
+            <h3 class="card-title">Architectural Hotspots</h3>
+          </div>
+          <span class="badge-count">{{ hotspots().length }} ranked</span>
+        </div>
+
+        <div class="formula-box" *ngIf="heuristicFormula()">
+          <span class="formula-title">Heuristic Formula:</span>
+          <code class="formula-code">{{ heuristicFormula() }}</code>
+        </div>
+
+        <div class="hotspots-list" *ngIf="hotspots().length > 0; else noHotspots">
+          <article
+            class="hotspot-item"
+            *ngFor="let h of hotspots()"
+            (click)="focusHotspot(h)"
+            [class.active]="selectedNode()?.name === h.name"
+          >
+            <div class="hotspot-item-header">
+              <strong class="hotspot-name">{{ h.name }}</strong>
+              <span class="hotspot-score">{{ h.score.toFixed(1) }}</span>
+            </div>
+            <div class="hotspot-meta">
+              <span>{{ h.filePath }}</span>
+            </div>
+            <div class="hotspot-metrics">
+              <span class="metric">In-degree: <strong>{{ h.inDegree }}</strong></span>
+              <span class="metric">Findings: <strong>{{ h.findingsCount }}</strong></span>
+              <span class="metric" *ngIf="h.highSeverityCount > 0">High/Crit: <strong>{{ h.highSeverityCount }}</strong></span>
+            </div>
+          </article>
+        </div>
+
+        <ng-template #noHotspots>
+          <div class="empty-hotspots">
+            <p>No hotspots recorded for this analysis snapshot.</p>
+          </div>
+        </ng-template>
+      </div>
+
+    </aside>
+
+  </div>
+</div>

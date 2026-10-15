@@ -1,0 +1,242 @@
+<section class="bench-page">
+  <header class="bench-header">
+    <div class="bench-title-group">
+      <h1 class="bench-title">
+        <svg class="bench-icon" viewBox="0 0 24 24" width="24" height="24" fill="none"
+             stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+        </svg>
+        Benchmark Leaderboard
+      </h1>
+      <p class="bench-subtitle">
+        Evaluation metrics from <code>ai-lab/eval/run_eval.py</code> — ranked by
+        <em>target finding resolved rate</em>.
+      </p>
+    </div>
+
+    <div class="bench-toolbar">
+      <label class="bench-filter" for="bench-version-filter">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+        </svg>
+        <select id="bench-version-filter" [ngModel]="datasetVersionFilter()"
+                (ngModelChange)="onVersionChange($event)" class="bench-select">
+          <option value="">All dataset versions</option>
+          @for (v of datasetVersions(); track v) {
+            <option [value]="v">{{ v }}</option>
+          }
+        </select>
+      </label>
+
+      <button class="bench-refresh" (click)="load()" [disabled]="loading()"
+              title="Reload leaderboard" aria-label="Reload leaderboard">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" [class.spinning]="loading()" aria-hidden="true">
+          <polyline points="23 4 23 10 17 10"/>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+        </svg>
+        Refresh
+      </button>
+    </div>
+  </header>
+
+  @if (error()) {
+    <div class="bench-error" role="alert">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+        <line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      {{ error() }}
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="bench-loading" aria-live="polite" aria-label="Loading benchmarks">
+      <div class="bench-spinner" aria-hidden="true"></div>
+      Loading…
+    </div>
+  } @else if (sortedRuns().length === 0) {
+    <div class="bench-empty">
+      <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.2"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M2 20h.01M7 20v-4M12 20v-8M17 20V8M22 4v16"/>
+      </svg>
+      <p>No benchmark runs recorded yet.</p>
+      <p class="bench-empty__hint">
+        Run <code>python ai-lab/eval/run_eval.py --push</code> to evaluate a model and record results.
+      </p>
+    </div>
+  } @else {
+    <div class="bench-table-wrap" role="region" aria-label="Benchmark leaderboard">
+      <table class="bench-table" id="bench-leaderboard-table">
+        <thead>
+          <tr>
+            <th class="col-rank" scope="col">#</th>
+            <th class="col-model" scope="col">Model / Condition</th>
+            <th class="col-dataset" scope="col">Dataset</th>
+            <th class="col-n" scope="col" title="Sample size">n</th>
+            <th class="col-metric sortable" scope="col" (click)="setSort('targetResolvedRate')"
+                [class.sorted]="sortKey()==='targetResolvedRate'" tabindex="0"
+                (keydown.enter)="setSort('targetResolvedRate')"
+                title="Target finding resolved rate">
+              Resolved{{ sortArrow('targetResolvedRate') }}
+            </th>
+            <th class="col-metric sortable" scope="col" (click)="setSort('noNewFindingsRate')"
+                [class.sorted]="sortKey()==='noNewFindingsRate'" tabindex="0"
+                (keydown.enter)="setSort('noNewFindingsRate')"
+                title="No new findings rate">
+              No-new{{ sortArrow('noNewFindingsRate') }}
+            </th>
+            <th class="col-metric sortable" scope="col" (click)="setSort('diffAppliesRate')"
+                [class.sorted]="sortKey()==='diffAppliesRate'" tabindex="0"
+                (keydown.enter)="setSort('diffAppliesRate')"
+                title="Diff applies cleanly rate">
+              Applies{{ sortArrow('diffAppliesRate') }}
+            </th>
+            <th class="col-metric sortable" scope="col" (click)="setSort('parsesRate')"
+                [class.sorted]="sortKey()==='parsesRate'" tabindex="0"
+                (keydown.enter)="setSort('parsesRate')"
+                title="Parses after patch rate">
+              Parses{{ sortArrow('parsesRate') }}
+            </th>
+            <th class="col-metric sortable" scope="col" (click)="setSort('schemaValidRate')"
+                [class.sorted]="sortKey()==='schemaValidRate'" tabindex="0"
+                (keydown.enter)="setSort('schemaValidRate')"
+                title="Schema valid rate">
+              Schema{{ sortArrow('schemaValidRate') }}
+            </th>
+            <th class="col-latency sortable" scope="col" (click)="setSort('avgLatencyMs')"
+                [class.sorted]="sortKey()==='avgLatencyMs'" tabindex="0"
+                (keydown.enter)="setSort('avgLatencyMs')"
+                title="Average latency ms">
+              Latency{{ sortArrow('avgLatencyMs') }}
+            </th>
+            <th class="col-cost sortable" scope="col" (click)="setSort('estimatedCostUsd')"
+                [class.sorted]="sortKey()==='estimatedCostUsd'" tabindex="0"
+                (keydown.enter)="setSort('estimatedCostUsd')"
+                title="Estimated USD cost for this run">
+              Cost{{ sortArrow('estimatedCostUsd') }}
+            </th>
+            <th class="col-expand" scope="col"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (run of sortedRuns(); track run.id; let i = $index) {
+            <tr class="bench-row" [class.bench-row--expanded]="isExpanded(run.id)"
+                [id]="'bench-row-' + run.id">
+              <td class="col-rank">{{ i + 1 }}</td>
+              <td class="col-model">
+                <div class="model-label">{{ run.modelName }}</div>
+                <div class="condition-label">{{ run.conditionName }}</div>
+                <div class="prompt-label">{{ run.promptVersion }}  ·  {{ run.retrievalStrategy }}</div>
+              </td>
+              <td class="col-dataset">
+                <span class="tag">{{ run.datasetVersion }}</span>
+              </td>
+              <td class="col-n">{{ run.sampleSize }}</td>
+              <td class="col-metric">
+                <div class="rate-cell">
+                  <span class="rate-value" [ngClass]="rateClass(run.targetResolvedRate)">
+                    {{ fmtRate(run.targetResolvedRate) }}
+                  </span>
+                  <div class="rate-bar-track" aria-hidden="true">
+                    <div class="rate-bar" [style.width]="barWidth(run.targetResolvedRate)"></div>
+                  </div>
+                </div>
+              </td>
+              <td class="col-metric">
+                <span class="rate-value" [ngClass]="rateClass(run.noNewFindingsRate)">
+                  {{ fmtRate(run.noNewFindingsRate) }}
+                </span>
+              </td>
+              <td class="col-metric">
+                <span class="rate-value" [ngClass]="rateClass(run.diffAppliesRate)">
+                  {{ fmtRate(run.diffAppliesRate) }}
+                </span>
+              </td>
+              <td class="col-metric">
+                <span class="rate-value" [ngClass]="rateClass(run.parsesRate)">
+                  {{ fmtRate(run.parsesRate) }}
+                </span>
+              </td>
+              <td class="col-metric">
+                <span class="rate-value" [ngClass]="rateClass(run.schemaValidRate)">
+                  {{ fmtRate(run.schemaValidRate) }}
+                </span>
+              </td>
+              <td class="col-latency">{{ (run.avgLatencyMs / 1000).toFixed(1) }}s</td>
+              <td class="col-cost">{{ fmtCost(run.estimatedCostUsd) }}</td>
+              <td class="col-expand">
+                <button class="expand-btn" (click)="toggleExpand(run.id)"
+                        [attr.aria-expanded]="isExpanded(run.id)"
+                        [attr.aria-controls]="'bench-detail-' + run.id"
+                        title="{{ isExpanded(run.id) ? 'Collapse' : 'Expand details' }}">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                       stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline [attr.points]="isExpanded(run.id) ? '18 15 12 9 6 15' : '6 9 12 15 18 9'" />
+                  </svg>
+                </button>
+              </td>
+            </tr>
+
+            @if (isExpanded(run.id)) {
+              <tr class="bench-detail-row" [id]="'bench-detail-' + run.id">
+                <td colspan="13">
+                  <div class="bench-detail">
+                    <div class="bench-detail__section">
+                      <h3 class="bench-detail__title">Run metadata</h3>
+                      <dl class="bench-detail__dl">
+                        <dt>Benchmark ID</dt><dd>{{ run.benchmarkId }}</dd>
+                        <dt>Dataset version</dt><dd>{{ run.datasetVersion }}</dd>
+                        <dt>Sample size</dt><dd>{{ run.sampleSize }} triples</dd>
+                        <dt>Median diff size</dt><dd>{{ run.medianDiffSize }} lines</dd>
+                        <dt>Total tokens</dt><dd>{{ run.totalTokens | number }}</dd>
+                        <dt>Recorded at</dt><dd>{{ fmtInstant(run.createdAt) }}</dd>
+                      </dl>
+                    </div>
+
+                    @if (run.notes) {
+                      <div class="bench-detail__section">
+                        <h3 class="bench-detail__title">Notes</h3>
+                        <p class="bench-detail__notes">{{ run.notes }}</p>
+                      </div>
+                    }
+
+                    @if (metricEntries(run.metricsJson).length > 0) {
+                      <div class="bench-detail__section">
+                        <h3 class="bench-detail__title">Full metrics</h3>
+                        <dl class="bench-detail__dl">
+                          @for (entry of metricEntries(run.metricsJson); track entry.key) {
+                            <dt>{{ entry.key }}</dt><dd>{{ entry.value }}</dd>
+                          }
+                        </dl>
+                      </div>
+                    }
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <div class="bench-legend">
+      <span class="legend-item">
+        <span class="rate-value rate--good">●</span> ≥ 80%
+      </span>
+      <span class="legend-item">
+        <span class="rate-value rate--medium">●</span> 50–79%
+      </span>
+      <span class="legend-item">
+        <span class="rate-value rate--poor">●</span> &lt; 50%
+      </span>
+      <span class="legend-sep">·</span>
+      <span class="legend-label">
+        Bars in <em>Resolved</em> column are relative to the top run in the current view.
+      </span>
+    </div>
+  }
+</section>

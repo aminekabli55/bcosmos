@@ -1,9 +1,43 @@
-/* A parser error can be a wall of expected tokens; show the start of it and keep the rest reachable. */
-.parse-error {
-  max-height: 4.5rem;
-  max-width: 32rem;
-  overflow: auto;
-  overflow-wrap: anywhere;
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.breadcrumb a {
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+.stage {
+  margin-left: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+}
+
+.polling {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+}
+
+.polling::after {
+  content: '';
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.2s ease-in-out infinite;
 }
 
 .head-actions {
@@ -12,62 +46,119 @@
   gap: 0.75rem;
 }
 
-.findings-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
-  gap: 1rem;
+.text-danger {
+  color: var(--danger);
 }
 
-@media (max-width: 1000px) {
-  .findings-layout {
-    grid-template-columns: 1fr;
-  }
+.stamp {
+  font-size: 0.85rem !important;
+  font-weight: 500 !important;
+  color: var(--muted);
+}
+
+/* Parser errors can be a wall of expected tokens; show the start and keep the rest reachable. */
+.parse-error {
+  max-height: 4.5rem;
+  max-width: 34rem;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--danger);
+}
+
+.findings-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2.1fr) minmax(300px, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.findings-list {
+  min-width: 0;
+}
+
+.cell-message {
+  max-width: 26rem;
 }
 
 .clickable {
   cursor: pointer;
 }
 
+.clickable:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* ------------------------------------------------------------- Evidence panel */
+
 .preview {
+  position: sticky;
+  top: 5rem;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.75rem;
-  background: var(--bg);
-  align-self: start;
+  border-radius: var(--radius);
+  padding: 0.9rem;
+  background: var(--surface-2);
+  box-shadow: var(--shadow-sm);
+  max-height: calc(100dvh - 6.5rem);
+  overflow: auto;
 }
 
-.preview h3 {
-  margin-bottom: 0.5rem;
+.preview__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
 }
 
-.preview p {
-  margin: 0 0 0.4rem;
-  font-size: 0.8125rem;
-}
-
-.fingerprint {
+.preview__file {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
   overflow-wrap: anywhere;
 }
 
+.preview__meta {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+}
+
+.fingerprint {
+  margin: 0 0 0.6rem;
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+}
+
+.preview__ai {
+  display: inline-flex;
+  margin-bottom: 0.6rem;
+}
+
 .source {
-  margin-top: 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  margin-top: 0.25rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
   background: var(--surface);
   overflow-x: auto;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.8125rem;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  line-height: 1.55;
 }
 
 .source__line {
   display: flex;
   gap: 0.75rem;
-  padding: 0 0.5rem;
+  padding: 0 0.6rem;
   white-space: pre;
 }
 
 .source__line--first {
   background: var(--warn-soft);
+  box-shadow: inset 3px 0 0 var(--sev-medium);
 }
 
 .source__number {
@@ -75,4 +166,16 @@
   text-align: right;
   color: var(--muted);
   user-select: none;
+  flex: none;
+}
+
+@media (max-width: 1000px) {
+  .findings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .preview {
+    position: static;
+    max-height: none;
+  }
 }

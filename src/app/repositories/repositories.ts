@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { BcosmosApi } from '../core/api/bcosmos-api';
 import { AnalysisRun, Repository, formatInstant, isTerminalStatus } from '../core/api/models';
 import { problemMessage } from '../core/api/problem';
+import { getLanguageSupport } from '../core/language-support';
 
 /** A run that is still moving is asked about once a second; the backend does the work in-process (ADR 0001). */
 const POLL_INTERVAL_MS = 1000;
@@ -36,6 +37,12 @@ export class Repositories {
 
   protected readonly formatInstant = formatInstant;
   protected readonly isTerminalStatus = isTerminalStatus;
+  protected readonly languageSupport = getLanguageSupport;
+
+  /** First letter of a repository name, for the avatar in the list. */
+  protected initial(name: string): string {
+    return name.trim().charAt(0).toUpperCase() || '?';
+  }
 
   constructor() {
     this.loadRepositories();
