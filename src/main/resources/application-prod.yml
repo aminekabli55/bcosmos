@@ -1,0 +1,19 @@
+# Production: the broker and the clone directory must be stated by the environment; there is no localhost default
+# to fall back on, so a misconfigured miner stops instead of cloning into the wrong place.
+spring:
+  kafka:
+    bootstrap-servers: ${BCOSMOS_KAFKA_BOOTSTRAP}
+
+bcosmos:
+  miner:
+    clone-dir: ${BCOSMOS_MINER_CLONE_DIR}
+
+management:
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    root: WARN
+    com.bcosmos: INFO

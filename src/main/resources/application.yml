@@ -1,8 +1,10 @@
 spring:
   application:
     name: miner
+  # The profile you get when nothing is set, exactly as in the backend (ADR 0018).
+  profiles:
+    default: dev
   kafka:
-    bootstrap-servers: ${BCOSMOS_KAFKA_BOOTSTRAP:localhost:9092}
     consumer:
       group-id: bcosmos-miner
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
@@ -18,14 +20,11 @@ management:
     web:
       exposure:
         include: health,info
-  endpoint:
-    health:
-      show-details: always
 
 bcosmos:
   miner:
+    # Hosts the miner may clone from; enforced before a single byte is fetched (spec v2 section 7.5).
     allowed-hosts: ${BCOSMOS_CORPUS_ALLOWED_HOSTS:github.com,gitlab.com}
-    clone-dir: ${BCOSMOS_MINER_CLONE_DIR:data/repos}
     commit-window: ${BCOSMOS_MINER_COMMIT_WINDOW:50}
     max-retry-attempts: ${BCOSMOS_MINER_MAX_RETRY:3}
     initial-backoff-ms: ${BCOSMOS_MINER_INITIAL_BACKOFF_MS:500}
