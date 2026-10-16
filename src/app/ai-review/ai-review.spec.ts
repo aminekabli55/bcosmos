@@ -33,7 +33,10 @@ function finding(overrides: Partial<Finding> = {}): Finding {
 function model(overrides: Partial<LlmModel> = {}): LlmModel {
   return {
     id: 1,
-    provider: 'GEMINI',
+    providerId: 10,
+    provider: 'gemini',
+    providerLabel: 'Google Gemini',
+    providerProtocol: 'GEMINI',
     modelName: 'gemini-2.5-flash',
     kind: 'HOSTED',
     capability: 'CHAT',
@@ -45,7 +48,8 @@ function model(overrides: Partial<LlmModel> = {}): LlmModel {
     costPer1kOut: 0.0025,
     notes: null,
     updatedAt: '2026-10-13T10:00:00Z',
-    credentialConfigured: true,
+    credentialSource: 'ENVIRONMENT',
+    credentialHint: null,
     credentialEnvironmentVariable: 'GEMINI_API_KEY',
     ...overrides,
   };

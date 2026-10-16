@@ -90,6 +90,68 @@ describe('BcosmosApi', () => {
     request.flush({});
   });
 
+  it('lists the provider registry with pagination', () => {
+    api.listProviders(2, 25).subscribe();
+    const request = http.expectOne((candidate) => candidate.url === '/api/providers');
+    expect(request.request.method).toBe('GET');
+    expect(request.request.params.get('page')).toBe('2');
+    expect(request.request.params.get('size')).toBe('25');
+    request.flush({ items: [], page: 2, size: 25, totalItems: 0, totalPages: 0, hasNext: false });
+  });
+
+  it('registers a provider with its endpoint and key', () => {
+    api
+      .createProvider({
+        code: 'deepseek',
+        label: 'DeepSeek',
+        protocol: 'OPENAI_COMPATIBLE',
+        baseUrl: 'https://api.deepseek.com/v1',
+        apiKeyEnv: 'DEEPSEEK_API_KEY',
+        apiKeyRequired: true,
+        apiKey: 'sk-once',
+      })
+      .subscribe();
+    const request = http.expectOne('/api/providers');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body).toEqual({
+      code: 'deepseek',
+      label: 'DeepSeek',
+      protocol: 'OPENAI_COMPATIBLE',
+      baseUrl: 'https://api.deepseek.com/v1',
+      apiKeyEnv: 'DEEPSEEK_API_KEY',
+      apiKeyRequired: true,
+      apiKey: 'sk-once',
+    });
+    request.flush({});
+  });
+
+  it('edits a provider and deletes one', () => {
+    api.updateProvider(4, { apiKey: '' }).subscribe();
+    const put = http.expectOne('/api/providers/4');
+    expect(put.request.method).toBe('PUT');
+    // An empty key clears the stored credential; a null one would leave it alone.
+    expect(put.request.body).toEqual({ apiKey: '' });
+    put.flush({});
+
+    api.deleteProvider(4).subscribe();
+    const remove = http.expectOne('/api/providers/4');
+    expect(remove.request.method).toBe('DELETE');
+    remove.flush(null);
+  });
+
+  it('registers a model on a provider and can remove one', () => {
+    api.createModel({ providerId: 4, modelName: 'deepseek-chat', capability: 'CHAT', enabled: false }).subscribe();
+    const create = http.expectOne('/api/models');
+    expect(create.request.method).toBe('POST');
+    expect(create.request.body).toEqual({ providerId: 4, modelName: 'deepseek-chat', capability: 'CHAT', enabled: false });
+    create.flush({});
+
+    api.deleteModel(9).subscribe();
+    const remove = http.expectOne('/api/models/9');
+    expect(remove.request.method).toBe('DELETE');
+    remove.flush(null);
+  });
+
   it('reads the AI master switch', () => {
     api.getAiSettings().subscribe();
     const request = http.expectOne('/api/settings/ai');

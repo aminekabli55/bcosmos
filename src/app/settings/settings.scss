@@ -180,3 +180,36 @@
   display: flex;
   gap: 0.5rem;
 }
+
+/* ------------------------------------------------------------------ Provider editor */
+
+/* The "add provider" form sits above the table rather than inside a row of it. */
+.editor--new {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  padding: 0.9rem;
+  margin-bottom: 0.9rem;
+}
+
+.editor--new .hint {
+  flex-basis: 100%;
+  margin-top: 0;
+}
+
+/* The one checkbox in the form: a row of tick + text instead of a stacked field. */
+.field--check {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  white-space: nowrap;
+  padding-bottom: 0.4rem;
+}
+
+.field--check input {
+  margin: 0;
+}
+

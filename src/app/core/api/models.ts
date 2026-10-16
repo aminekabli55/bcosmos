@@ -99,15 +99,73 @@ export interface FindingFilter {
   size: number;
 }
 
-export type LlmProvider = 'GEMINI' | 'OPENAI_COMPATIBLE';
 export type LlmModelKind = 'HOSTED' | 'FINETUNED';
 /** What a registry row is for: a chat model cannot embed, and an embedding model cannot chat. */
 export type LlmModelCapability = 'CHAT' | 'EMBEDDING';
 
-/** One registry row (spec v2 section 8, `GET /api/models`). */
+export const PROVIDER_PROTOCOLS = ['GEMINI', 'OPENAI_COMPATIBLE'] as const;
+/**
+ * The wire shape a provider speaks, which is what selects the adapter. It is not the vendor: DeepSeek, Groq,
+ * OpenRouter and a local vLLM server are all `OPENAI_COMPATIBLE` rows.
+ */
+export type ProviderProtocol = (typeof PROVIDER_PROTOCOLS)[number];
+
+/**
+ * Where a provider's credential comes from. Never the credential itself: that stays on the server (ADR 0038).
+ * `STORED` was pasted into the screen and is encrypted, `ENVIRONMENT` is a variable name the row points at,
+ * `NOT_REQUIRED` is a local server, `MISSING` is why its models cannot run.
+ */
+export type CredentialSource = 'STORED' | 'ENVIRONMENT' | 'NOT_REQUIRED' | 'MISSING';
+
+/** One provider row (`GET /api/providers`): a code, the protocol it speaks, its endpoint and where its key is. */
+export interface Provider {
+  id: number;
+  code: string;
+  label: string;
+  protocol: ProviderProtocol;
+  baseUrl: string;
+  apiKeyRequired: boolean;
+  credentialSource: CredentialSource;
+  /** Last four characters of a stored key; the key itself never reaches the browser. */
+  credentialHint: string | null;
+  credentialEnvironmentVariable: string | null;
+  /** Registry rows attached to this provider — it cannot be deleted while one exists. */
+  modelCount: number;
+  updatedAt: string;
+}
+
+/** A new provider (`POST /api/providers`). `apiKey` travels once and is never echoed back. */
+export interface CreateProviderRequest {
+  code: string;
+  label: string;
+  protocol: ProviderProtocol;
+  baseUrl: string;
+  apiKeyEnv?: string | null;
+  apiKeyRequired?: boolean | null;
+  apiKey?: string | null;
+}
+
+/**
+ * An edit of one provider (`PUT /api/providers/{id}`); a missing field means "leave it". An empty `apiKey` clears
+ * the stored key. `code` is absent: it is the stable identity, so it never changes.
+ */
+export interface UpdateProviderRequest {
+  label?: string | null;
+  protocol?: ProviderProtocol | null;
+  baseUrl?: string | null;
+  apiKeyEnv?: string | null;
+  apiKeyRequired?: boolean | null;
+  apiKey?: string | null;
+}
+
+/** One registry row (`GET /api/models`), owned by the provider row that carries its endpoint and credential. */
 export interface LlmModel {
   id: number;
-  provider: LlmProvider;
+  providerId: number;
+  /** The provider's stable code, for example `deepseek`. */
+  provider: string;
+  providerLabel: string;
+  providerProtocol: ProviderProtocol;
   modelName: string;
   kind: LlmModelKind;
   capability: LlmModelCapability;
@@ -120,9 +178,28 @@ export interface LlmModel {
   costPer1kOut: number;
   notes: string | null;
   updatedAt: string;
-  /** Whether the provider has a key in the backend environment. The key itself never reaches the browser. */
-  credentialConfigured: boolean;
+  credentialSource: CredentialSource;
+  /** Last four characters of a stored key, or `null`. */
+  credentialHint: string | null;
   credentialEnvironmentVariable: string | null;
+}
+
+/**
+ * A new registry row (`POST /api/models`): the provider that owns the endpoint, the model id exactly as the vendor
+ * spells it, and the knobs that have defaults. `embeddingDimension` is required for an `EMBEDDING` row.
+ */
+export interface CreateModelRequest {
+  providerId: number;
+  modelName: string;
+  kind?: LlmModelKind | null;
+  capability?: LlmModelCapability | null;
+  embeddingDimension?: number | null;
+  enabled?: boolean | null;
+  defaultModel?: boolean | null;
+  contextWindow?: number | null;
+  costPer1kIn?: number | null;
+  costPer1kOut?: number | null;
+  notes?: string | null;
 }
 
 /**

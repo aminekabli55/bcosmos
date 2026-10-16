@@ -9,6 +9,8 @@ import {
   AnalyticsOverview,
   BenchmarkRun,
   CreateBenchmarkRunRequest,
+  CreateModelRequest,
+  CreateProviderRequest,
   DatasetRepository,
   DatasetSplit,
   FileRecord,
@@ -21,6 +23,7 @@ import {
   ModelEdit,
   Paged,
   ParseStatus,
+  Provider,
   RegisterRepositoryRequest,
   Repository,
   RuleStat,
@@ -29,6 +32,7 @@ import {
   SuggestionStatus,
   TimeToFixBucket,
   TrendPoint,
+  UpdateProviderRequest,
   CorpusIngestRequest,
   CorpusIngestResponse,
   CorpusStatusResponse,
@@ -133,6 +137,36 @@ export class BcosmosApi {
 
   listModels(page = 0, size = 50): Observable<Paged<LlmModel>> {
     return this.http.get<Paged<LlmModel>>('/api/models', { params: this.page(page, size) });
+  }
+
+  /** The provider registry: every endpoint the gateway may call, paginated like every other list. */
+  listProviders(page = 0, size = 50): Observable<Paged<Provider>> {
+    return this.http.get<Paged<Provider>>('/api/providers', { params: this.page(page, size) });
+  }
+
+  /** Registers a vendor: code, protocol, base URL and optionally a key that is encrypted before it is stored. */
+  createProvider(request: CreateProviderRequest): Observable<Provider> {
+    return this.http.post<Provider>('/api/providers', request);
+  }
+
+  /** Edits a provider; a blank `apiKey` clears the stored key and an omitted one leaves it alone. */
+  updateProvider(providerId: number, edit: UpdateProviderRequest): Observable<Provider> {
+    return this.http.put<Provider>(`/api/providers/${providerId}`, edit);
+  }
+
+  /** Removes a provider no model references; refused with 409 while one still points at it. */
+  deleteProvider(providerId: number): Observable<void> {
+    return this.http.delete<void>(`/api/providers/${providerId}`);
+  }
+
+  /** Registers a model on a provider: the id as the vendor spells it; a pasted row starts disabled. */
+  createModel(request: CreateModelRequest): Observable<LlmModel> {
+    return this.http.post<LlmModel>('/api/models', request);
+  }
+
+  /** Removes a registry row; the default row of a capability is refused with 409 until another one is default. */
+  deleteModel(modelId: number): Observable<void> {
+    return this.http.delete<void>(`/api/models/${modelId}`);
   }
 
   /** Enables, disables, promotes or corrects one registry row. */
