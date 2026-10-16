@@ -6,7 +6,7 @@
   padding: 1rem;
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
 }
 
 .grow {
@@ -21,13 +21,13 @@
 }
 
 .count-chip {
-  font-size: 0.78rem;
-  font-weight: 600;
+  font-size: 0.8125rem;
+  font-weight: 500;
   color: var(--muted);
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 0.15rem 0.6rem;
+  border-radius: 100px;
+  padding: 0.2rem 0.65rem;
 }
 
 .repo-name {
@@ -40,11 +40,11 @@
 .repo-avatar {
   display: grid;
   place-items: center;
-  width: 1.7rem;
-  height: 1.7rem;
-  border-radius: 8px;
-  font-size: 0.78rem;
-  font-weight: 700;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 600;
   color: var(--accent);
   background: var(--accent-soft);
   border: 1px solid var(--accent-ring);
@@ -76,7 +76,7 @@
 
 .confirm-row td {
   background: var(--danger-soft);
-  border-bottom-color: color-mix(in srgb, var(--danger) 25%, white);
+  border-bottom-color: color-mix(in srgb, var(--danger) 20%, white);
 }
 
 .confirm-row__text {
@@ -92,5 +92,5 @@
 
 .error-row td {
   background: var(--danger-soft);
-  border-bottom-color: color-mix(in srgb, var(--danger) 25%, white);
+  border-bottom-color: color-mix(in srgb, var(--danger) 20%, white);
 }

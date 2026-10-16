@@ -9,7 +9,7 @@
   padding: 1rem 1.15rem;
   border: 1px solid var(--border);
   border-left: 4px solid var(--border-strong);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--surface-2);
   transition: border-color 0.15s ease;
 }
@@ -66,7 +66,7 @@
   display: inline-block;
   width: 2.6rem;
   height: 1.5rem;
-  border-radius: 999px;
+  border-radius: 100px;
   background: var(--border-strong);
   transition: background 0.15s ease;
   flex: none;
@@ -117,8 +117,8 @@
 }
 
 .switch__label {
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: 0.875rem;
+  font-weight: 500;
   color: var(--muted);
 }
 
@@ -134,7 +134,7 @@
 
 .model-notes {
   display: block;
-  font-size: 0.78rem;
+  font-size: 0.8125rem;
 }
 
 .price {
@@ -187,7 +187,7 @@
 .editor--new {
   border: 1px solid var(--border);
   border-left: 4px solid var(--accent);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--surface-2);
   padding: 0.9rem;
   margin-bottom: 0.9rem;
@@ -203,7 +203,7 @@
   flex-direction: row;
   align-items: center;
   gap: 0.45rem;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   color: var(--muted);
   white-space: nowrap;
   padding-bottom: 0.4rem;

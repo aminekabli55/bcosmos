@@ -18,14 +18,14 @@
   padding: 0.85rem 1rem;
   background: linear-gradient(135deg, var(--accent-soft), var(--surface-2));
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
 }
 
 .snapshot dt {
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 700;
+  letter-spacing: 0.05em;
+  font-weight: 600;
   color: var(--muted);
 }
 
@@ -61,7 +61,7 @@
   font-size: 0.8125rem;
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   color: var(--text);
   overflow-x: auto;
   white-space: nowrap;
@@ -133,11 +133,11 @@
   padding: 0.3rem 0.6rem;
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: 100px;
   cursor: pointer;
   transition:
-    border-color 0.12s ease,
-    background 0.12s ease;
+    border-color 0.1s ease,
+    background 0.1s ease;
 }
 
 .legend__item:hover {
@@ -158,10 +158,10 @@
 }
 
 .inline-stats dt {
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 700;
+  letter-spacing: 0.05em;
+  font-weight: 600;
   color: var(--muted);
 }
 
@@ -204,7 +204,7 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-left: 3px solid var(--accent);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
 }
 
 /* An unmeasured component is visibly not part of the score, rather than a component that scored zero. */
@@ -221,10 +221,10 @@
 }
 
 .component__label {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 700;
+  letter-spacing: 0.05em;
+  font-weight: 600;
   color: var(--muted);
 }
 
@@ -259,7 +259,7 @@
   padding: 0.4rem 0.7rem;
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   font-size: 0.8125rem;
 }
 

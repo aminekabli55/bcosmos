@@ -2,49 +2,49 @@
 
 :root {
   /* Surfaces and lines */
-  --bg: #f4f6fb;
-  --bg-strong: #eaeef6;
+  --bg: #fafbfc;
+  --bg-strong: #f0f2f5;
   --surface: #ffffff;
-  --surface-2: #f8fafc;
-  --border: #e3e7ef;
-  --border-strong: #ccd4e3;
+  --surface-2: #f8f9fa;
+  --border: #e1e4e8;
+  --border-strong: #d0d7de;
 
   /* Text */
-  --text: #101828;
-  --muted: #667085;
+  --text: #1f2328;
+  --muted: #656d76;
 
   /* Brand / accent */
-  --accent: #4f46e5;
-  --accent-strong: #4338ca;
-  --accent-soft: #eef2ff;
-  --accent-ring: rgba(79, 70, 229, 0.28);
-  --accent-grad: linear-gradient(135deg, #6366f1, #4f46e5);
+  --accent: #0969da;
+  --accent-strong: #0550ae;
+  --accent-soft: #ddf4ff;
+  --accent-ring: rgba(9, 105, 218, 0.25);
+  --accent-grad: linear-gradient(135deg, #2f81f7, #0969da);
 
   /* Status */
-  --danger: #b42318;
-  --danger-soft: #fef3f2;
-  --danger-ring: rgba(180, 35, 24, 0.24);
-  --ok: #15803d;
-  --ok-soft: #ecfdf3;
-  --ok-ring: rgba(21, 128, 61, 0.24);
-  --warn-soft: #fffaeb;
-  --warn-border: #f2d08a;
+  --danger: #cf222e;
+  --danger-soft: #ffebe9;
+  --danger-ring: rgba(207, 34, 46, 0.25);
+  --ok: #1a7f37;
+  --ok-soft: #dafbe1;
+  --ok-ring: rgba(26, 127, 55, 0.25);
+  --warn-soft: #fff8c5;
+  --warn-border: #d29922;
 
   /* Severity scale */
-  --sev-critical: #b42318;
-  --sev-high: #c8501f;
-  --sev-medium: #96690a;
-  --sev-low: #15803d;
-  --sev-info: #475467;
+  --sev-critical: #cf222e;
+  --sev-high: #d29922;
+  --sev-medium: #9a6700;
+  --sev-low: #1a7f37;
+  --sev-info: #656d76;
 
   /* Shape and depth */
-  --radius-sm: 8px;
-  --radius: 12px;
-  --radius-lg: 16px;
-  --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.05);
-  --shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.08), 0 1px 2px rgba(16, 24, 40, 0.04);
-  --shadow-md: 0 4px 12px rgba(16, 24, 40, 0.08);
-  --shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.12);
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
 
   --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
 }
@@ -60,9 +60,10 @@ html {
 body {
   margin: 0;
   font-family:
-    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  font-size: 15px;
-  line-height: 1.5;
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif,
+    'Apple Color Emoji', 'Segoe UI Emoji';
+  font-size: 14px;
+  line-height: 1.6;
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
@@ -84,26 +85,26 @@ a {
 }
 
 h1 {
-  font-size: 1.5rem;
-  line-height: 1.2;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-size: 1.75rem;
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.02em;
   margin: 0;
 }
 
 h2 {
-  font-size: 1.125rem;
-  font-weight: 650;
-  letter-spacing: -0.005em;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   margin: 0;
 }
 
 h3 {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   margin: 0;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 700;
+  letter-spacing: 0.05em;
+  font-weight: 600;
   color: var(--muted);
 }
 
@@ -113,9 +114,9 @@ h3 {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 1.25rem 1.5rem;
-  margin-bottom: 1.25rem;
-  box-shadow: var(--shadow-sm);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-xs);
 }
 
 .card--flat {
@@ -145,7 +146,7 @@ h3 {
 
 .table-wrap {
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   overflow: hidden;
   overflow-x: auto;
 }
@@ -159,7 +160,7 @@ table {
 th,
 td {
   text-align: left;
-  padding: 0.6rem 0.85rem;
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
@@ -169,10 +170,10 @@ tbody tr:last-child td {
 }
 
 th {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 700;
+  letter-spacing: 0.05em;
+  font-weight: 600;
   color: var(--muted);
   background: var(--surface-2);
   border-bottom: 1px solid var(--border-strong);
@@ -180,7 +181,7 @@ th {
 }
 
 tbody tr {
-  transition: background 0.12s ease;
+  transition: background 0.1s ease;
 }
 
 tbody tr:hover {
@@ -218,11 +219,11 @@ tbody tr.is-selected td {
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.12rem 0.55rem 0.12rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 600;
+  gap: 0.4rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 100px;
+  font-size: 0.75rem;
+  font-weight: 500;
   letter-spacing: 0.01em;
   color: var(--muted);
   background: var(--surface-2);
@@ -230,11 +231,10 @@ tbody tr.is-selected td {
   white-space: nowrap;
 }
 
-/* The dot carries the same colour as the text, so severity survives without colour. */
 .badge::before {
   content: '';
-  width: 0.42rem;
-  height: 0.42rem;
+  width: 0.4rem;
+  height: 0.4rem;
   border-radius: 50%;
   background: currentColor;
   flex: none;
@@ -247,22 +247,22 @@ tbody tr.is-selected td {
 .badge--severity-CRITICAL {
   color: var(--sev-critical);
   background: var(--danger-soft);
-  border-color: color-mix(in srgb, var(--sev-critical) 35%, white);
+  border-color: color-mix(in srgb, var(--sev-critical) 25%, white);
 }
 .badge--severity-HIGH {
   color: var(--sev-high);
   background: var(--warn-soft);
-  border-color: color-mix(in srgb, var(--sev-high) 35%, white);
+  border-color: color-mix(in srgb, var(--sev-high) 25%, white);
 }
 .badge--severity-MEDIUM {
   color: var(--sev-medium);
   background: var(--warn-soft);
-  border-color: color-mix(in srgb, var(--sev-medium) 35%, white);
+  border-color: color-mix(in srgb, var(--sev-medium) 25%, white);
 }
 .badge--severity-LOW {
   color: var(--sev-low);
   background: var(--ok-soft);
-  border-color: color-mix(in srgb, var(--sev-low) 35%, white);
+  border-color: color-mix(in srgb, var(--sev-low) 25%, white);
 }
 .badge--severity-INFO {
   color: var(--sev-info);
@@ -271,28 +271,28 @@ tbody tr.is-selected td {
 }
 
 .badge--lang-l3 {
-  color: #1d4ed8;
-  background: #eff6ff;
-  border-color: #bfdbfe;
+  color: #0969da;
+  background: #ddf4ff;
+  border-color: #54aeff;
 }
 .badge--lang-l3::before {
-  background: #3b82f6;
+  background: #2f81f7;
 }
 
 .badge--lang-l2 {
-  color: #047857;
-  background: #ecfdf5;
-  border-color: #a7f3d0;
+  color: #1a7f37;
+  background: #dafbe1;
+  border-color: #3fb950;
 }
 .badge--lang-l2::before {
-  background: #10b981;
+  background: #2ea043;
 }
 
 .badge--run-SUCCEEDED,
 .badge--run-ANALYSED {
   color: var(--ok);
   background: var(--ok-soft);
-  border-color: color-mix(in srgb, var(--ok) 35%, white);
+  border-color: color-mix(in srgb, var(--ok) 25%, white);
 }
 
 .badge--run-FAILED,
@@ -331,10 +331,10 @@ tbody tr.is-selected td {
   justify-content: center;
   gap: 0.4rem;
   font: inherit;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  line-height: 1.2;
-  padding: 0.5rem 0.9rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25;
+  padding: 0.5rem 1rem;
   border-radius: var(--radius-sm);
   border: 1px solid transparent;
   background: var(--accent-grad);
@@ -343,14 +343,14 @@ tbody tr.is-selected td {
   text-decoration: none;
   box-shadow: var(--shadow-xs);
   transition:
-    transform 0.12s ease,
-    box-shadow 0.12s ease,
-    background 0.12s ease,
-    border-color 0.12s ease;
+    transform 0.1s ease,
+    box-shadow 0.1s ease,
+    background 0.1s ease,
+    border-color 0.1s ease;
 
   &:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-sm);
   }
 
   &:active:not(:disabled) {
@@ -359,7 +359,7 @@ tbody tr.is-selected td {
   }
 
   &:disabled {
-    opacity: 0.55;
+    opacity: 0.5;
     cursor: default;
     box-shadow: none;
   }
@@ -385,13 +385,13 @@ tbody tr.is-selected td {
 }
 
 .button--danger:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--danger) 85%, black);
-  border-color: color-mix(in srgb, var(--danger) 85%, black);
+  background: color-mix(in srgb, var(--danger) 90%, black);
+  border-color: color-mix(in srgb, var(--danger) 90%, black);
 }
 
 .button--sm {
-  font-size: 0.78rem;
-  padding: 0.35rem 0.7rem;
+  font-size: 0.8125rem;
+  padding: 0.35rem 0.75rem;
 }
 
 /* ---------------------------------------------------------------- Forms */
@@ -400,18 +400,18 @@ tbody tr.is-selected td {
 .select {
   font: inherit;
   font-size: 0.875rem;
-  padding: 0.5rem 0.65rem;
+  padding: 0.5rem 0.75rem;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--text);
   transition:
-    border-color 0.12s ease,
-    box-shadow 0.12s ease;
+    border-color 0.1s ease,
+    box-shadow 0.1s ease;
 }
 
 .input::placeholder {
-  color: color-mix(in srgb, var(--muted) 75%, white);
+  color: color-mix(in srgb, var(--muted) 70%, white);
 }
 
 .input:focus,
@@ -424,9 +424,9 @@ tbody tr.is-selected td {
 .select {
   appearance: none;
   padding-right: 2rem;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23667085' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23656d76' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 0.7rem center;
+  background-position: right 0.75rem center;
   cursor: pointer;
 }
 
@@ -437,10 +437,10 @@ tbody tr.is-selected td {
 }
 
 .field label {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 700;
+  letter-spacing: 0.05em;
+  font-weight: 600;
   color: var(--muted);
 }
 
@@ -454,10 +454,10 @@ tbody tr.is-selected td {
 
 .filters {
   margin-bottom: 1rem;
-  padding: 0.9rem 1rem;
+  padding: 1rem;
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
 }
 
 .filters .field label {
@@ -530,7 +530,7 @@ tbody tr.is-selected td {
 
 .counters {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 0.75rem;
   margin: 0;
 }
@@ -538,29 +538,29 @@ tbody tr.is-selected td {
 .counters > div {
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 0.7rem 0.85rem;
+  border-radius: var(--radius);
+  padding: 0.875rem 1rem;
   min-width: 0;
 }
 
 .counters dt {
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 700;
+  letter-spacing: 0.05em;
+  font-weight: 600;
   color: var(--muted);
 }
 
 .counters dd {
-  margin: 0.2rem 0 0;
-  font-size: 1.2rem;
-  font-weight: 650;
+  margin: 0.25rem 0 0;
+  font-size: 1.25rem;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
 
 .counters dd .badge {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
 }
 
 .counters dd.mono {
