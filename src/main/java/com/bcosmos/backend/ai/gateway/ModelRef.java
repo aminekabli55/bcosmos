@@ -2,7 +2,6 @@ package com.bcosmos.backend.ai.gateway;
 
 import com.bcosmos.backend.persistence.LlmModelCapability;
 import com.bcosmos.backend.persistence.LlmModelKind;
-import com.bcosmos.backend.persistence.LlmProvider;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Objects;
@@ -10,11 +9,13 @@ import java.util.Objects;
 /**
  * A registry row resolved into the values the gateway needs (spec v2 section 4.1, table {@code llm_model}).
  *
- * <p>It carries no credential: adapters ask {@link ProviderCredentials} for the key when they build a request, so a
- * model reference can be logged, returned by the API and stored on a usage row without leaking anything.</p>
+ * <p>It carries no credential: {@code provider} is the resolved provider <em>row</em>, which holds the endpoint and
+ * a reference to where the key lives but never the key itself. Adapters ask {@link ProviderCredentials} for the
+ * value when they build a request, so a model reference can be logged, returned by the API and stored on a usage
+ * row without leaking anything (ADR 0038).</p>
  *
  * @param id            registry id
- * @param provider      which adapter talks to it
+ * @param provider      the provider row that owns the endpoint and the credential
  * @param modelName     the provider's model name
  * @param kind               hosted or fine-tuned
  * @param capability         chat or embedding; the gateway only ever asks this ref for what it can do
@@ -25,7 +26,7 @@ import java.util.Objects;
  */
 public record ModelRef(
         long id,
-        LlmProvider provider,
+        ProviderRef provider,
         String modelName,
         LlmModelKind kind,
         LlmModelCapability capability,
@@ -52,7 +53,7 @@ public record ModelRef(
 
     /** How the model is named in a log line or a problem detail. */
     public String label() {
-        return provider + "/" + modelName;
+        return provider.code() + "/" + modelName;
     }
 
     /**

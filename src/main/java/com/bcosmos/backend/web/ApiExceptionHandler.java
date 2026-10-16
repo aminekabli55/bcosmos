@@ -9,8 +9,15 @@ import com.bcosmos.backend.ai.gateway.MissingApiKeyException;
 import com.bcosmos.backend.ai.gateway.ModelCapabilityException;
 import com.bcosmos.backend.ai.gateway.ModelDisabledException;
 import com.bcosmos.backend.ai.gateway.ModelNotConfiguredException;
+import com.bcosmos.backend.ai.gateway.DuplicateModelException;
+import com.bcosmos.backend.ai.gateway.DuplicateProviderException;
+import com.bcosmos.backend.ai.gateway.InvalidProviderUpdateException;
 import com.bcosmos.backend.ai.gateway.ModelNotFoundException;
+import com.bcosmos.backend.ai.gateway.ProviderInUseException;
 import com.bcosmos.backend.ai.gateway.ProviderNotConfiguredException;
+import com.bcosmos.backend.ai.gateway.ProviderNotFoundException;
+import com.bcosmos.backend.ai.gateway.SecretStorageUnavailableException;
+import com.bcosmos.backend.ai.gateway.StoredCredentialUnreadableException;
 import com.bcosmos.backend.ai.gateway.StructuredOutputException;
 import com.bcosmos.backend.ai.rag.EmbeddingDimensionException;
 import com.bcosmos.backend.ai.suggestion.SuggestionNotPossibleException;
@@ -82,6 +89,44 @@ public class ApiExceptionHandler {
     @ExceptionHandler(ModelNotFoundException.class)
     public ProblemDetail handleModelNotFound(ModelNotFoundException exception) {
         return problem(HttpStatus.NOT_FOUND, "Model not found", exception.getMessage());
+    }
+
+    @ExceptionHandler(ProviderNotFoundException.class)
+    public ProblemDetail handleProviderNotFound(ProviderNotFoundException exception) {
+        return problem(HttpStatus.NOT_FOUND, "Provider not found", exception.getMessage());
+    }
+
+    /** A provider whose code, or whose (provider, model name) pair, is already taken. */
+    @ExceptionHandler({DuplicateProviderException.class, DuplicateModelException.class})
+    public ProblemDetail handleDuplicateRegistration(RuntimeException exception) {
+        return problem(HttpStatus.CONFLICT, "Already registered", exception.getMessage());
+    }
+
+    /** The provider still has models, so removing it would leave them without an endpoint. */
+    @ExceptionHandler(ProviderInUseException.class)
+    public ProblemDetail handleProviderInUse(ProviderInUseException exception) {
+        return problem(HttpStatus.CONFLICT, "Provider in use", exception.getMessage());
+    }
+
+    @ExceptionHandler(InvalidProviderUpdateException.class)
+    public ProblemDetail handleInvalidProviderUpdate(InvalidProviderUpdateException exception) {
+        return problem(HttpStatus.BAD_REQUEST, "Invalid provider", exception.getMessage());
+    }
+
+    /**
+     * No master key, so a credential cannot be stored encrypted.
+     *
+     * <p>Refusing is deliberate: writing it in the clear would contradict what the screen promises (ADR 0038).</p>
+     */
+    @ExceptionHandler(SecretStorageUnavailableException.class)
+    public ProblemDetail handleSecretStorageUnavailable(SecretStorageUnavailableException exception) {
+        return problem(HttpStatus.CONFLICT, "Secret storage not configured", exception.getMessage());
+    }
+
+    /** A stored credential the current master key cannot read: store the key again, do not retry the call. */
+    @ExceptionHandler(StoredCredentialUnreadableException.class)
+    public ProblemDetail handleStoredCredentialUnreadable(StoredCredentialUnreadableException exception) {
+        return problem(HttpStatus.CONFLICT, "Stored credential cannot be read", exception.getMessage());
     }
 
     @ExceptionHandler(SuggestionNotFoundException.class)

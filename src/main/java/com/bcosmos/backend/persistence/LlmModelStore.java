@@ -26,4 +26,13 @@ public interface LlmModelStore {
 
     /** Inserts a row with a {@code null} id, or updates the existing row with that id. */
     LlmModelRecord save(LlmModelRecord model);
+
+    /** How many models a provider has, so removing the provider can be refused while they exist. */
+    long countByProvider(long providerId);
+
+    /** Whether this provider already has a model of that name; the pair is unique in the table. */
+    boolean existsByProviderAndModelName(long providerId, String modelName);
+
+    /** Removes a registry row. */
+    void delete(long id);
 }

@@ -1,0 +1,50 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0026-fix-seeded-model-notes
+      author: bcosmos
+      comment: >-
+        Two seeded llm_model rows still carry instructions for a configuration path that changeset 0025 removed
+        (bcosmos.ai.providers.openai-compatible.base-url no longer exists: endpoints live on llm_provider rows now).
+        The old changesets are never edited — their checksums are what a deployed database validates against — so the
+        advice is corrected here as data. The WHERE clause matches the seeded wording itself, so a note a user has
+        since rewritten is left alone.
+      changes:
+        - update:
+            tableName: llm_model
+            columns:
+              - column:
+                  name: notes
+                  value: >-
+                    Seeded second model so the same prompt can run on two providers. Set OPENAI_API_KEY, or register
+                    any OpenAI-compatible endpoint as a provider in Settings.
+            where: "notes LIKE 'Seeded second model so the same prompt can run on two providers.%'"
+        - update:
+            tableName: llm_model
+            columns:
+              - column:
+                  name: notes
+                  value: >-
+                    Seeded second embedding model, so retrieval can be compared across providers. Set
+                    OPENAI_API_KEY, or register any OpenAI-compatible endpoint that serves embeddings as a provider
+                    in Settings.
+            where: "notes LIKE 'Seeded second embedding model, so retrieval can be compared across providers.%'"
+      rollback:
+        - update:
+            tableName: llm_model
+            columns:
+              - column:
+                  name: notes
+                  value: >-
+                    Seeded second model so the same prompt can run on two providers. Set OPENAI_API_KEY, or point
+                    bcosmos.ai.providers.openai-compatible.base-url at any OpenAI-compatible endpoint.
+            where: "notes LIKE 'Seeded second model so the same prompt can run on two providers.%'"
+        - update:
+            tableName: llm_model
+            columns:
+              - column:
+                  name: notes
+                  value: >-
+                    Seeded second embedding model, so retrieval can be compared across providers. Set
+                    OPENAI_API_KEY, or point bcosmos.ai.providers.openai-compatible.base-url at any
+                    OpenAI-compatible endpoint that serves embeddings.
+            where: "notes LIKE 'Seeded second embedding model, so retrieval can be compared across providers.%'"

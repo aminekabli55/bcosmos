@@ -2,6 +2,7 @@ package com.bcosmos.backend.config;
 
 import com.bcosmos.backend.ai.gateway.AiEnablement;
 import com.bcosmos.backend.ai.gateway.GeminiAdapter;
+import com.bcosmos.backend.ai.gateway.HostEnvironment;
 import com.bcosmos.backend.ai.gateway.LlmClient;
 import com.bcosmos.backend.ai.gateway.LlmException;
 import com.bcosmos.backend.ai.gateway.LlmGateway;
@@ -10,9 +11,12 @@ import com.bcosmos.backend.ai.gateway.ModelRegistry;
 import com.bcosmos.backend.ai.gateway.OpenAiCompatibleAdapter;
 import com.bcosmos.backend.ai.gateway.PromptTemplateLoader;
 import com.bcosmos.backend.ai.gateway.ProviderCredentials;
+import com.bcosmos.backend.ai.gateway.ProviderRegistry;
+import com.bcosmos.backend.ai.gateway.SecretCipher;
 import com.bcosmos.backend.ai.gateway.SecretRedactor;
 import com.bcosmos.backend.ai.gateway.UsageRecorder;
 import com.bcosmos.backend.persistence.LlmModelStore;
+import com.bcosmos.backend.persistence.LlmProviderStore;
 import io.github.resilience4j.core.IntervalFunction;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
@@ -21,6 +25,7 @@ import java.util.List;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.core.io.ResourceLoader;
 import tools.jackson.databind.ObjectMapper;
 
@@ -28,9 +33,39 @@ import tools.jackson.databind.ObjectMapper;
 @EnableConfigurationProperties(AiProperties.class)
 public class AiConfiguration {
 
+    /**
+     * The one place that may read credentials out of the environment.
+     *
+     * <p>Backed by Spring's {@code Environment} rather than {@code System.getenv} directly: it resolves the same
+     * process environment variables, and an integration test can supply one as a property instead of depending on
+     * the machine it runs on.</p>
+     */
     @Bean
-    public ProviderCredentials providerCredentials(AiProperties properties) {
-        return new ProviderCredentials(properties);
+    public HostEnvironment hostEnvironment(Environment environment) {
+        return name -> {
+            if (name == null || name.isBlank()) {
+                return null;
+            }
+            String value = environment.getProperty(name);
+            return value == null || value.isBlank() ? null : value;
+        };
+    }
+
+    /**
+     * The master key that protects credentials stored through the settings screen (ADR 0038).
+     *
+     * <p>Built eagerly on purpose: a malformed key fails the startup with a message naming the property, instead of
+     * failing at the first call that needed to decrypt something.</p>
+     */
+    @Bean
+    public SecretCipher secretCipher(AiProperties properties) {
+        return SecretCipher.fromBase64(properties.secretKey());
+    }
+
+    @Bean
+    public ProviderCredentials providerCredentials(LlmProviderStore providers, SecretCipher cipher,
+            HostEnvironment environment) {
+        return new ProviderCredentials(providers, cipher, environment);
     }
 
     @Bean
@@ -39,8 +74,15 @@ public class AiConfiguration {
     }
 
     @Bean
-    public ModelRegistry modelRegistry(LlmModelStore models, ProviderCredentials credentials, Clock clock) {
-        return new ModelRegistry(models, credentials, clock);
+    public ModelRegistry modelRegistry(LlmModelStore models, LlmProviderStore providers,
+            ProviderCredentials credentials, Clock clock) {
+        return new ModelRegistry(models, providers, credentials, clock);
+    }
+
+    @Bean
+    public ProviderRegistry providerRegistry(LlmProviderStore providers, LlmModelStore models,
+            ProviderCredentials credentials, SecretCipher cipher, Clock clock) {
+        return new ProviderRegistry(providers, models, credentials, cipher, clock);
     }
 
     @Bean

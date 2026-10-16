@@ -4,9 +4,12 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -15,9 +18,9 @@ import java.util.Objects;
 /**
  * One model the gateway may call (spec v2 section 4.1, table {@code llm_model}).
  *
- * <p>There is no credential column and there never will be: API keys come from environment variables (ADR 0007,
- * spec section 10). {@code enabled} is the per-model opt-in that keeps code from leaving the machine unless the
- * user asked for it.</p>
+ * <p>A row names a provider row, which owns the endpoint and the credential: this table holds no base URL, no key
+ * and no vendor list (ADR 0038). {@code enabled} is the per-model opt-in that keeps code from leaving the machine
+ * unless the user asked for it.</p>
  */
 @Entity
 @Table(name = "llm_model")
@@ -27,9 +30,9 @@ public class LlmModelEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "provider", nullable = false, length = 40)
-    private LlmProvider provider;
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @JoinColumn(name = "provider_id", nullable = false)
+    private LlmProviderEntity provider;
 
     @Column(name = "model_name", nullable = false, length = 120)
     private String modelName;
@@ -74,7 +77,7 @@ public class LlmModelEntity {
     protected LlmModelEntity() {
     }
 
-    public LlmModelEntity(LlmProvider provider, String modelName, LlmModelKind kind,
+    public LlmModelEntity(LlmProviderEntity provider, String modelName, LlmModelKind kind,
             LlmModelCapability capability, Integer embeddingDimension, boolean enabled, boolean defaultModel,
             int contextWindow, BigDecimal costPer1kIn, BigDecimal costPer1kOut, String notes, Instant now) {
         this.provider = Objects.requireNonNull(provider, "provider");
@@ -120,7 +123,7 @@ public class LlmModelEntity {
         return id;
     }
 
-    public LlmProvider getProvider() {
+    public LlmProviderEntity getProvider() {
         return provider;
     }
 

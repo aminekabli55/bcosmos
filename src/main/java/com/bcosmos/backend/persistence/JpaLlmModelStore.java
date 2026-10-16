@@ -9,14 +9,16 @@ import org.springframework.stereotype.Repository;
 public class JpaLlmModelStore implements LlmModelStore {
 
     private final LlmModelJpaRepository models;
+    private final LlmProviderJpaRepository providers;
 
-    public JpaLlmModelStore(LlmModelJpaRepository models) {
+    public JpaLlmModelStore(LlmModelJpaRepository models, LlmProviderJpaRepository providers) {
         this.models = models;
+        this.providers = providers;
     }
 
     @Override
     public List<LlmModelRecord> findAll() {
-        return models.findAllByOrderByProviderAscModelNameAsc().stream().map(JpaLlmModelStore::toRecord).toList();
+        return models.findAllByOrderByProviderIdAscModelNameAsc().stream().map(JpaLlmModelStore::toRecord).toList();
     }
 
     @Override
@@ -31,7 +33,7 @@ public class JpaLlmModelStore implements LlmModelStore {
 
     @Override
     public List<LlmModelRecord> findByCapability(LlmModelCapability capability) {
-        return models.findByCapabilityOrderByProviderAscModelNameAsc(capability).stream()
+        return models.findByCapabilityOrderByProviderIdAscModelNameAsc(capability).stream()
                 .map(JpaLlmModelStore::toRecord)
                 .toList();
     }
@@ -39,8 +41,11 @@ public class JpaLlmModelStore implements LlmModelStore {
     @Override
     public LlmModelRecord save(LlmModelRecord model) {
         if (model.id() == null) {
+            // A reference, not a fetch: the provider row must exist (the foreign key says so), and there is no
+            // reason to read it back to insert a model that points at it.
+            LlmProviderEntity provider = providers.getReferenceById(model.provider().id());
             return toRecord(models.save(new LlmModelEntity(
-                    model.provider(),
+                    provider,
                     model.modelName(),
                     model.kind(),
                     model.capability(),
@@ -60,10 +65,25 @@ public class JpaLlmModelStore implements LlmModelStore {
         return toRecord(models.save(entity));
     }
 
+    @Override
+    public long countByProvider(long providerId) {
+        return models.countByProviderId(providerId);
+    }
+
+    @Override
+    public boolean existsByProviderAndModelName(long providerId, String modelName) {
+        return models.existsByProviderIdAndModelName(providerId, modelName);
+    }
+
+    @Override
+    public void delete(long id) {
+        models.deleteById(id);
+    }
+
     private static LlmModelRecord toRecord(LlmModelEntity entity) {
         return new LlmModelRecord(
                 entity.getId(),
-                entity.getProvider(),
+                JpaLlmProviderStore.toRecord(entity.getProvider()),
                 entity.getModelName(),
                 entity.getKind(),
                 entity.getCapability(),

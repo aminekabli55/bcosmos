@@ -30,8 +30,6 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ArrayNode;
@@ -54,8 +52,10 @@ import tools.jackson.databind.node.ObjectNode;
         "bcosmos.ai.max-attempts=2",
         "bcosmos.ai.timeout=20s",
         "bcosmos.ai.initial-backoff=10ms",
-        "bcosmos.ai.providers.gemini.api-key=integration-gemini-key-0000",
-        "bcosmos.ai.providers.openai-compatible.api-key=integration-openai-key-0000"
+        // The credential comes from the environment variable the provider row names, and the endpoint from the
+        // row itself — which this test repoints at the fake server below (ADR 0038).
+        "GEMINI_API_KEY=integration-gemini-key-0000",
+        "OPENAI_API_KEY=integration-openai-key-0000"
 })
 class SuggestionIntegrationTest {
 
@@ -134,12 +134,6 @@ class SuggestionIntegrationTest {
         return server;
     }
 
-    @DynamicPropertySource
-    static void providerEndpoints(DynamicPropertyRegistry registry) {
-        registry.add("bcosmos.ai.providers.gemini.base-url", PROVIDERS::baseUrl);
-        registry.add("bcosmos.ai.providers.openai-compatible.base-url", PROVIDERS::baseUrl);
-    }
-
     @AfterAll
     static void stopFakeProviders() {
         PROVIDERS.stop();
@@ -148,6 +142,9 @@ class SuggestionIntegrationTest {
     @BeforeEach
     void fakeTheProvidersAndWriteTheFixture() throws IOException {
         PROVIDERS.resetAll();
+        // Both seeded providers point at the fake server, so no test reaches a real API (ADR 0038).
+        jdbc.update("update llm_provider set base_url = ? where code = 'gemini'", PROVIDERS.baseUrl());
+        jdbc.update("update llm_provider set base_url = ? where code = 'openai'", PROVIDERS.baseUrl() + "/v1");
         stubEmbeddings();
         stubSuggestionAnswer();
 

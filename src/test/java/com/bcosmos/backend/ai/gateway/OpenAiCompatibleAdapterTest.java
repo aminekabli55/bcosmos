@@ -8,7 +8,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.bcosmos.backend.persistence.LlmProvider;
+import com.bcosmos.backend.persistence.LlmProviderRecord;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
@@ -117,7 +117,7 @@ class OpenAiCompatibleAdapterTest {
                 """)));
 
         ModelRef embeddingModel = ModelRegistry.toRef(
-                AiTestSupport.model(5, LlmProvider.OPENAI_COMPATIBLE, "text-embedding-3-small", true, false));
+                AiTestSupport.model(5, openAiProvider(), "text-embedding-3-small", true, false));
         ProviderEmbeddings embeddings = adapter.embed(embeddingModel, List.of("a", "b"));
 
         assertThat(embeddings.vectors()).hasSize(2);
@@ -127,8 +127,18 @@ class OpenAiCompatibleAdapterTest {
     }
 
     private OpenAiCompatibleAdapter adapter(Duration timeout) {
-        var properties = AiTestSupport.properties(true, server.baseUrl(), server.baseUrl(), timeout, 2);
-        return new OpenAiCompatibleAdapter(properties, new ProviderCredentials(properties), JSON);
+        return new OpenAiCompatibleAdapter(AiTestSupport.properties(true, timeout, 2),
+                AiTestSupport.credentials(openAiProvider()), JSON);
+    }
+
+    /**
+     * The provider row for the fake server.
+     *
+     * <p>The base URL is the versioned root and the paths are appended to it, which is how a real vendor is
+     * pointed at: {@code https://api.deepseek.com/v1} plus {@code /chat/completions}.</p>
+     */
+    private static LlmProviderRecord openAiProvider() {
+        return AiTestSupport.openai(server.baseUrl() + "/v1");
     }
 
     private static CompletionRequest request() {
@@ -136,8 +146,7 @@ class OpenAiCompatibleAdapterTest {
     }
 
     private static ModelRef model() {
-        return ModelRegistry.toRef(
-                AiTestSupport.model(2, LlmProvider.OPENAI_COMPATIBLE, "gpt-4o-mini", true, false));
+        return ModelRegistry.toRef(AiTestSupport.model(2, openAiProvider(), "gpt-4o-mini", true, false));
     }
 
     private static ResponseDefinitionBuilder json(String body) {

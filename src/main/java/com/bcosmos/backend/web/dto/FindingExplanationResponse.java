@@ -2,7 +2,7 @@ package com.bcosmos.backend.web.dto;
 
 import com.bcosmos.backend.ai.explanation.FindingExplanation;
 import com.bcosmos.backend.ai.explanation.FindingExplanationResult;
-import com.bcosmos.backend.persistence.LlmProvider;
+
 import java.util.List;
 
 /**
@@ -13,6 +13,7 @@ import java.util.List;
  * answer got wrong instead of hiding it.</p>
  *
  * @param modelName        which model answered
+ * @param provider         the provider code that served it, for example {@code gemini}
  * @param promptVersion    versioned prompt used, the same value the usage row stores
  * @param rejectedAttempts schema problems of the first answer; empty when it validated immediately
  */
@@ -20,7 +21,7 @@ public record FindingExplanationResponse(
         long findingId,
         long modelId,
         String modelName,
-        LlmProvider provider,
+        String provider,
         String promptVersion,
         String summary,
         String explanation,
@@ -37,7 +38,7 @@ public record FindingExplanationResponse(
                 findingId,
                 result.model().id(),
                 result.model().modelName(),
-                result.model().provider(),
+                result.model().provider().code(),
                 result.promptVersion(),
                 explanation.summary(),
                 explanation.explanation(),

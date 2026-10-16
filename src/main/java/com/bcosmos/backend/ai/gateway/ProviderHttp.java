@@ -1,7 +1,6 @@
 package com.bcosmos.backend.ai.gateway;
 
 import com.bcosmos.backend.config.AiProperties;
-import com.bcosmos.backend.persistence.LlmProvider;
 import java.io.InterruptedIOException;
 import java.net.SocketTimeoutException;
 import java.net.http.HttpClient;
@@ -15,7 +14,7 @@ import tools.jackson.databind.JsonNode;
  * The parts both adapters share: how to build a client with the configured timeouts, how to read a JSON answer
  * defensively, and how to turn an HTTP failure into a {@link LlmException} the gateway can retry or report.
  *
- * <p>Error messages carry the provider and the status code only. Response bodies never reach a message or a log
+ * <p>Error messages carry the provider code and the status code only. Response bodies never reach a message or a log
  * line: an error body can echo the request, and the request contains source code (spec v2 section 10).</p>
  */
 final class ProviderHttp {
@@ -41,7 +40,7 @@ final class ProviderHttp {
     }
 
     /** Maps a transport or HTTP failure to the gateway's error vocabulary. */
-    static LlmException map(LlmProvider provider, RuntimeException failure) {
+    static LlmException map(String provider, RuntimeException failure) {
         if (failure instanceof LlmException llmFailure) {
             return llmFailure;
         }
@@ -66,7 +65,7 @@ final class ProviderHttp {
     }
 
     /** A provider that answered something unreadable is a failure, not an empty answer. */
-    static LlmProviderException malformed(LlmProvider provider, String detail) {
+    static LlmProviderException malformed(String provider, String detail) {
         return new LlmProviderException(LlmErrorCode.MALFORMED_RESPONSE,
                 provider + " answered something unexpected: " + detail, true);
     }

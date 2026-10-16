@@ -1,0 +1,245 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0025-create-llm-provider
+      author: bcosmos
+      comment: >-
+        A provider becomes a row instead of a Java enum value (Phase 11, spec v2 sections 7.1 and 10). Before this
+        change the set of callable providers was fixed at compile time (GEMINI, OPENAI_COMPATIBLE) and each one had
+        exactly one base URL and one API key, both from configuration - so DeepSeek, Groq, Ollama and OpenRouter
+        could not coexist, and Claude needed a new class. Now llm_provider carries the endpoint, the protocol that
+        selects the adapter, and the credential: either an environment variable name, or a key the user pasted,
+        stored encrypted with a master key that itself comes from the environment (ADR 0038). The plaintext key is
+        never a column, is never returned by the API, and api_key_hint holds only the last four characters so the
+        screen can say which key is in place. Existing rows are backfilled by the legacy provider value.
+      changes:
+        - createTable:
+            tableName: llm_provider
+            remarks: One callable endpoint. Adding a vendor here is a data change, not a deployment.
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: code
+                  type: varchar(60)
+                  remarks: >-
+                    Stable identifier used in logs, usage rows and problem details. Lowercase, immutable after
+                    creation, and the associated data of the encrypted credential.
+                  constraints:
+                    nullable: false
+              - column:
+                  name: label
+                  type: varchar(120)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: protocol
+                  type: varchar(40)
+                  remarks: >-
+                    GEMINI or OPENAI_COMPATIBLE. This selects the adapter; the vendor is only a row. Most providers
+                    (DeepSeek, Groq, OpenRouter, xAI, Mistral, Together, Ollama, vLLM) speak the OpenAI shape.
+                  constraints:
+                    nullable: false
+              - column:
+                  name: base_url
+                  type: varchar(300)
+                  remarks: >-
+                    The provider's documented API root; every protocol appends its own paths. For
+                    OPENAI_COMPATIBLE that means the versioned root, for example https://api.deepseek.com/v1.
+                  constraints:
+                    nullable: false
+              - column:
+                  name: api_key_env
+                  type: varchar(80)
+                  remarks: Environment variable read when no stored key exists. Never a value.
+              - column:
+                  name: api_key_ciphertext
+                  type: text
+                  remarks: >-
+                    AES-256-GCM, base64 of (12-byte IV || ciphertext), authenticated with the provider code (ADR
+                    0038). Null means the key comes from the environment.
+              - column:
+                  name: api_key_hint
+                  type: varchar(16)
+                  remarks: Last four characters of a stored key, for the settings screen only.
+              - column:
+                  name: api_key_required
+                  type: boolean
+                  remarks: False for a local server (Ollama, vLLM) that takes no credential.
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: llm_provider
+            columnNames: code
+            constraintName: uq_llm_provider_code
+
+        # The three providers the application already knew about, plus the two vendors this change exists for.
+        # A row with no registry rows attached is inert: nothing is called until a model row names it.
+        - insert:
+            tableName: llm_provider
+            columns:
+              - column: { name: code, value: "gemini" }
+              - column: { name: label, value: "Google Gemini" }
+              - column: { name: protocol, value: "GEMINI" }
+              - column: { name: base_url, value: "https://generativelanguage.googleapis.com" }
+              - column: { name: api_key_env, value: "GEMINI_API_KEY" }
+              - column: { name: api_key_required, valueBoolean: true }
+              - column: { name: created_at, valueComputed: "CURRENT_TIMESTAMP" }
+              - column: { name: updated_at, valueComputed: "CURRENT_TIMESTAMP" }
+        - insert:
+            tableName: llm_provider
+            columns:
+              - column: { name: code, value: "openai" }
+              - column: { name: label, value: "OpenAI" }
+              - column: { name: protocol, value: "OPENAI_COMPATIBLE" }
+              - column: { name: base_url, value: "https://api.openai.com/v1" }
+              - column: { name: api_key_env, value: "OPENAI_API_KEY" }
+              - column: { name: api_key_required, valueBoolean: true }
+              - column: { name: created_at, valueComputed: "CURRENT_TIMESTAMP" }
+              - column: { name: updated_at, valueComputed: "CURRENT_TIMESTAMP" }
+        - insert:
+            tableName: llm_provider
+            columns:
+              - column: { name: code, value: "local-openai" }
+              - column: { name: label, value: "Local OpenAI-compatible server (vLLM, LM Studio)" }
+              - column: { name: protocol, value: "OPENAI_COMPATIBLE" }
+              - column: { name: base_url, value: "http://localhost:8000/v1" }
+              - column: { name: api_key_env, value: "BCOSMOS_LOCAL_API_KEY" }
+              - column: { name: api_key_required, valueBoolean: false }
+              - column: { name: created_at, valueComputed: "CURRENT_TIMESTAMP" }
+              - column: { name: updated_at, valueComputed: "CURRENT_TIMESTAMP" }
+        - insert:
+            tableName: llm_provider
+            columns:
+              - column: { name: code, value: "deepseek" }
+              - column: { name: label, value: "DeepSeek" }
+              - column: { name: protocol, value: "OPENAI_COMPATIBLE" }
+              - column: { name: base_url, value: "https://api.deepseek.com/v1" }
+              - column: { name: api_key_env, value: "DEEPSEEK_API_KEY" }
+              - column: { name: api_key_required, valueBoolean: true }
+              - column: { name: created_at, valueComputed: "CURRENT_TIMESTAMP" }
+              - column: { name: updated_at, valueComputed: "CURRENT_TIMESTAMP" }
+        - insert:
+            tableName: llm_provider
+            columns:
+              - column: { name: code, value: "claude" }
+              - column: { name: label, value: "Anthropic Claude (OpenAI-compatible layer)" }
+              - column: { name: protocol, value: "OPENAI_COMPATIBLE" }
+              - column: { name: base_url, value: "https://api.anthropic.com/v1" }
+              - column: { name: api_key_env, value: "ANTHROPIC_API_KEY" }
+              - column: { name: api_key_required, valueBoolean: true }
+              - column: { name: created_at, valueComputed: "CURRENT_TIMESTAMP" }
+              - column: { name: updated_at, valueComputed: "CURRENT_TIMESTAMP" }
+
+        - addColumn:
+            tableName: llm_model
+            columns:
+              - column:
+                  name: provider_id
+                  type: bigint
+                  remarks: The provider row that owns the endpoint and the credential.
+        - update:
+            tableName: llm_model
+            columns:
+              - column:
+                  name: provider_id
+                  valueComputed: "(SELECT id FROM llm_provider WHERE code = 'gemini')"
+            where: "provider = 'GEMINI'"
+        - update:
+            tableName: llm_model
+            columns:
+              - column:
+                  name: provider_id
+                  valueComputed: "(SELECT id FROM llm_provider WHERE code = 'openai')"
+            where: "provider = 'OPENAI_COMPATIBLE'"
+        # Phase 7 seeded the QLoRA model against the OpenAI-compatible shape, but it is served by a locally hosted
+        # endpoint, so it starts on the local row. Move it if it is hosted somewhere else.
+        - update:
+            tableName: llm_model
+            columns:
+              - column:
+                  name: provider_id
+                  valueComputed: "(SELECT id FROM llm_provider WHERE code = 'local-openai')"
+            where: "model_name = 'bcosmos-qwen2.5-coder-1.5b-qlora'"
+        - addNotNullConstraint:
+            tableName: llm_model
+            columnName: provider_id
+            columnDataType: bigint
+        - addForeignKeyConstraint:
+            baseTableName: llm_model
+            baseColumnNames: provider_id
+            referencedTableName: llm_provider
+            referencedColumnNames: id
+            onDelete: RESTRICT
+            constraintName: fk_llm_model_llm_provider
+        - dropUniqueConstraint:
+            tableName: llm_model
+            constraintName: uq_llm_model_provider_model_name
+        - addUniqueConstraint:
+            tableName: llm_model
+            columnNames: provider_id, model_name
+            constraintName: uq_llm_model_provider_id_model_name
+        - dropColumn:
+            tableName: llm_model
+            columnName: provider
+
+        # The usage history keeps its own copy of the provider and model name so it survives a registry edit; from
+        # now on that copy holds the provider code, which is longer than the old enum name.
+        - modifyDataType:
+            tableName: llm_usage
+            columnName: provider
+            newDataType: varchar(60)
+        - update:
+            tableName: llm_usage
+            columns:
+              - column: { name: provider, value: "gemini" }
+            where: "provider = 'GEMINI'"
+        - update:
+            tableName: llm_usage
+            columns:
+              - column: { name: provider, value: "openai" }
+            where: "provider = 'OPENAI_COMPATIBLE'"
+      rollback:
+        - modifyDataType:
+            tableName: llm_usage
+            columnName: provider
+            newDataType: varchar(40)
+        - addColumn:
+            tableName: llm_model
+            columns:
+              - column:
+                  name: provider
+                  type: varchar(40)
+                  defaultValue: OPENAI_COMPATIBLE
+                  constraints:
+                    nullable: false
+        - update:
+            tableName: llm_model
+            columns:
+              - column: { name: provider, value: "GEMINI" }
+            where: "provider_id = (SELECT id FROM llm_provider WHERE code = 'gemini')"
+        - dropUniqueConstraint:
+            tableName: llm_model
+            constraintName: uq_llm_model_provider_id_model_name
+        - dropForeignKeyConstraint:
+            baseTableName: llm_model
+            constraintName: fk_llm_model_llm_provider
+        - dropColumn:
+            tableName: llm_model
+            columnName: provider_id
+        - dropTable:
+            tableName: llm_provider

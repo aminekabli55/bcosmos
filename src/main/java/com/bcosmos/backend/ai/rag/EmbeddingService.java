@@ -113,9 +113,15 @@ public class EmbeddingService {
                 tokens.usage(), skippedSymbols(runId)));
     }
 
-    /** The value stored in {@code code_chunk.embed_model}: provider and model name, so it survives a registry edit. */
+    /**
+     * The value stored in {@code code_chunk.embed_model}: provider code and model name, so it survives a registry
+     * edit.
+     *
+     * <p>It is also the memo key that decides whether vectors can be reused, which is why it names the provider
+     * code rather than a provider id: the same model reached through a renamed row is still the same vectors.</p>
+     */
     public static String embedModelOf(ModelRef model) {
-        return model.provider() + "/" + model.modelName();
+        return model.label();
     }
 
     private long skippedSymbols(long runId) {

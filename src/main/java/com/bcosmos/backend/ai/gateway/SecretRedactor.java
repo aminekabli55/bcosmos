@@ -1,17 +1,17 @@
 package com.bcosmos.backend.ai.gateway;
 
-import com.bcosmos.backend.persistence.LlmProvider;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 /**
  * Removes credentials from anything on its way out of the process (spec v2 sections 7.1 and 10: "secrets are
  * redacted from prompts and logs").
  *
- * <p>Two layers, because either one alone is a false sense of safety. First the literal configured keys, so the
- * keys this process actually holds can never appear in a prompt. Then the shapes of well-known credentials, so a key
+ * <p>Two layers, because either one alone is a false sense of safety. First the literal keys the process can read
+ * right now — asked for on every call, not cached at startup, so a key stored through the settings screen is
+ * redacted on the next prompt instead of on the next restart. Then the shapes of well-known credentials, so a key
  * that reached the analysed source, a pasted log line or a model answer is masked too.</p>
  *
  * <p>It errs towards redaction: a long string literal assigned to something called {@code token} in the analysed
@@ -39,21 +39,21 @@ public final class SecretRedactor {
             Pattern.compile("-----BEGIN [A-Z ]*PRIVATE KEY-----[\\s\\S]*?-----END [A-Z ]*PRIVATE KEY-----"),
             Pattern.compile("(?i)\\b(?:api[_-]?key|secret|token|password)\\s*[:=]\\s*[\"'][A-Za-z0-9\\-_/+=]{20,}[\"']"));
 
-    private final List<Secret> secrets;
+    private final Supplier<List<Secret>> secrets;
 
+    /** A redactor over a fixed set of secrets, for tests and for a process that has none. */
     public SecretRedactor(List<Secret> secrets) {
-        this.secrets = List.copyOf(secrets);
+        this(() -> secrets);
     }
 
-    /** The redactor for the keys this process actually holds. */
+    /** A redactor that asks for the current secrets on every use. */
+    public SecretRedactor(Supplier<List<Secret>> secrets) {
+        this.secrets = Objects.requireNonNull(secrets, "secrets");
+    }
+
+    /** The redactor for whatever the providers hold right now. */
     public static SecretRedactor from(ProviderCredentials credentials) {
-        List<Secret> secrets = new ArrayList<>();
-        for (LlmProvider provider : LlmProvider.values()) {
-            if (credentials.isConfigured(provider)) {
-                secrets.add(new Secret(credentials.require(provider), ProviderCredentials.configurationKey(provider)));
-            }
-        }
-        return new SecretRedactor(secrets);
+        return new SecretRedactor(credentials::currentSecrets);
     }
 
     /** Redacts one text. A {@code null} input stays {@code null}. */
@@ -62,7 +62,7 @@ public final class SecretRedactor {
             return text;
         }
         String redacted = text;
-        for (Secret secret : secrets) {
+        for (Secret secret : secrets.get()) {
             if (secret.value().length() >= MIN_SECRET_LENGTH) {
                 redacted = redacted.replace(secret.value(), "[" + secret.label() + "-key redacted]");
             }

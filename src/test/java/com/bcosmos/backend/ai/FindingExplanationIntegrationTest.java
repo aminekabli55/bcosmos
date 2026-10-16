@@ -18,7 +18,8 @@ import com.bcosmos.backend.persistence.LlmModelCapability;
 import com.bcosmos.backend.persistence.LlmModelEntity;
 import com.bcosmos.backend.persistence.LlmModelJpaRepository;
 import com.bcosmos.backend.persistence.LlmModelKind;
-import com.bcosmos.backend.persistence.LlmProvider;
+import com.bcosmos.backend.persistence.LlmProviderEntity;
+import com.bcosmos.backend.persistence.LlmProviderJpaRepository;
 import com.bcosmos.backend.persistence.RepositoryEntity;
 import com.bcosmos.backend.persistence.RepositoryJpaRepository;
 import com.bcosmos.backend.persistence.RepositorySourceType;
@@ -38,6 +39,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,8 +51,6 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
@@ -66,13 +67,18 @@ import tools.jackson.databind.node.ObjectNode;
         "bcosmos.ai.max-attempts=2",
         "bcosmos.ai.timeout=10s",
         "bcosmos.ai.initial-backoff=10ms",
-        "bcosmos.ai.providers.gemini.api-key=integration-gemini-key-0000",
-        "bcosmos.ai.providers.openai-compatible.api-key=integration-openai-key-0000"
+        // The master key that protects a credential stored through the API (ADR 0038): base64 of 32 bytes.
+        "bcosmos.ai.secret-key=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+        // Credentials now come from the variables the provider rows name, so a test supplies them as properties
+        // instead of depending on the machine it runs on.
+        "GEMINI_API_KEY=integration-gemini-key-0000",
+        "OPENAI_API_KEY=integration-openai-key-0000"
 })
 class FindingExplanationIntegrationTest {
 
     private static final String GEMINI_PATH = "/v1beta/models/gemini-2.5-flash:generateContent";
     private static final String OPENAI_PATH = "/v1/chat/completions";
+    private static final String COMPATIBLE_PATH = "/compatible/chat/completions";
 
     private static final String GEMINI_KEY = "integration-gemini-key-0000";
 
@@ -137,6 +143,9 @@ class FindingExplanationIntegrationTest {
     @Autowired
     private LlmModelJpaRepository models;
 
+    @Autowired
+    private LlmProviderJpaRepository providers;
+
     private long disabledModelId;
 
     private static WireMockServer startFakeProviders() {
@@ -145,21 +154,24 @@ class FindingExplanationIntegrationTest {
         return server;
     }
 
-    /** Both providers point at the fake server: no test ever reaches a real API (spec v2 section 11). */
-    @DynamicPropertySource
-    static void providerEndpoints(DynamicPropertyRegistry registry) {
-        registry.add("bcosmos.ai.providers.gemini.base-url", PROVIDERS::baseUrl);
-        registry.add("bcosmos.ai.providers.openai-compatible.base-url", PROVIDERS::baseUrl);
-    }
-
     @AfterAll
     static void stopFakeProviders() {
         PROVIDERS.stop();
     }
 
+    /**
+     * Both seeded providers point at the fake server, so no test reaches a real API (spec v2 section 11).
+     *
+     * <p>The endpoints are rows since Phase 11, not deployment properties, so a test points them at the fake server
+     * the same way a user would: by editing the row. That is the change this phase exists for, which makes it the
+     * honest way to set this up.</p>
+     */
     @BeforeEach
     void setUp() {
         PROVIDERS.resetAll();
+        // The openai row keeps its documented versioned root; the adapter appends /chat/completions to it.
+        jdbc.update("update llm_provider set base_url = ? where code = 'gemini'", PROVIDERS.baseUrl());
+        jdbc.update("update llm_provider set base_url = ? where code = 'openai'", PROVIDERS.baseUrl() + "/v1");
         disabledModelId = disabledModelId();
     }
 
@@ -177,14 +189,19 @@ class FindingExplanationIntegrationTest {
      * every test, and {@code provider + model_name} is unique by design.
      */
     private long disabledModelId() {
-        return models.findAllByOrderByProviderAscModelNameAsc().stream()
+        return models.findAll().stream()
                 .filter(model -> "gemini-2.5-pro-disabled".equals(model.getModelName()))
                 .findFirst()
                 .orElseGet(() -> models.save(new LlmModelEntity(
-                        LlmProvider.GEMINI, "gemini-2.5-pro-disabled", LlmModelKind.HOSTED,
+                        geminiProvider(), "gemini-2.5-pro-disabled", LlmModelKind.HOSTED,
                         LlmModelCapability.CHAT, null, false, false, 1_000_000,
                         new BigDecimal("0.001000"), new BigDecimal("0.004000"), "seeded by the test", Instant.now())))
                 .getId();
+    }
+
+    /** The seeded provider row, which the migration created; the test only ever edits it. */
+    private LlmProviderEntity geminiProvider() {
+        return providers.findByCode("gemini").orElseThrow();
     }
 
     @Test
@@ -193,9 +210,11 @@ class FindingExplanationIntegrationTest {
         assertThat(response.statusCode()).isEqualTo(200);
 
         JsonNode gemini = modelNamed(response, "gemini-2.5-flash");
-        assertThat(gemini.path("provider").asText()).isEqualTo("GEMINI");
+        // The provider is a row now: the code is what the screen shows, and the credential is reported by source.
+        assertThat(gemini.path("provider").asText()).isEqualTo("gemini");
+        assertThat(gemini.path("providerProtocol").asText()).isEqualTo("GEMINI");
         assertThat(gemini.path("defaultModel").asBoolean()).isTrue();
-        assertThat(gemini.path("credentialConfigured").asBoolean()).isTrue();
+        assertThat(gemini.path("credentialSource").asText()).isEqualTo("ENVIRONMENT");
         assertThat(gemini.path("credentialEnvironmentVariable").asText()).isEqualTo("GEMINI_API_KEY");
 
         assertThat(response.body()).doesNotContain(GEMINI_KEY);
@@ -240,7 +259,7 @@ class FindingExplanationIntegrationTest {
         assertThat(response.statusCode()).isEqualTo(200);
         JsonNode body = JSON.readTree(response.body());
         assertThat(body.path("modelName").asText()).isEqualTo("gpt-4o-mini");
-        assertThat(body.path("provider").asText()).isEqualTo("OPENAI_COMPATIBLE");
+        assertThat(body.path("provider").asText()).isEqualTo("openai");
         assertThat(body.path("promptVersion").asText()).isEqualTo("explain-finding.v1");
         assertThat(body.path("summary").asText()).isEqualTo("the catch block hides the read failure");
         assertThat(body.path("confidence").asText()).isEqualTo("HIGH");
@@ -451,6 +470,70 @@ class FindingExplanationIntegrationTest {
         throw new AssertionError("no model named " + modelName + " in " + response.body());
     }
 
+    /**
+     * The Phase 11 acceptance test: a vendor that did not exist at build time is registered, gets a model, answers a
+     * real call and is removed again — all through the API, with the credential stored encrypted (ADR 0038).
+     */
+    @Test
+    void registersAProviderAndItsModelAtRuntimeWithoutEverLeakingTheKey() throws Exception {
+        String code = "vendor" + UUID.randomUUID().toString().substring(0, 8);
+        String key = "integration-vendor-key-0000";
+        PROVIDERS.stubFor(post(urlEqualTo("/vendor/chat/completions")).willReturn(openAiAnswer(OPENAI_ANSWER)));
+
+        HttpResponse<String> created = apiPost("/api/providers", JSON.writeValueAsString(Map.of(
+                "code", code,
+                "label", "Integration Vendor",
+                "protocol", "OPENAI_COMPATIBLE",
+                "baseUrl", PROVIDERS.baseUrl() + "/vendor",
+                "apiKey", key)));
+        assertThat(created.statusCode()).isEqualTo(201);
+        JsonNode provider = JSON.readTree(created.body());
+        assertThat(provider.path("credentialSource").asText()).isEqualTo("STORED");
+        assertThat(provider.path("credentialHint").asText()).isEqualTo("0000");
+        assertThat(created.body()).doesNotContain(key);
+
+        // Encrypted at rest: neither the response nor the column carries the key the user pasted.
+        assertThat(jdbc.queryForObject("select api_key_ciphertext from llm_provider where code = ?", String.class, code))
+                .doesNotContain(key);
+
+        long providerId = provider.path("id").asLong();
+        HttpResponse<String> model = apiPost("/api/models", JSON.writeValueAsString(Map.of(
+                "providerId", providerId, "modelName", "vendor-chat-1", "enabled", true)));
+        assertThat(model.statusCode()).isEqualTo(201);
+        long modelId = JSON.readTree(model.body()).path("id").asLong();
+
+        long findingId = seedFinding();
+        HttpResponse<String> explanation = apiPost("/api/findings/" + findingId + "/explanations",
+                "{\"modelId\": " + modelId + "}");
+
+        assertThat(explanation.statusCode()).isEqualTo(200);
+        assertThat(JSON.readTree(explanation.body()).path("provider").asText()).isEqualTo(code);
+        assertThat(PROVIDERS.getAllServeEvents()).anySatisfy(event -> assertThat(
+                event.getRequest().getHeader("Authorization")).isEqualTo("Bearer " + key));
+
+        // A provider with models cannot be removed: that would leave them without an endpoint.
+        assertThat(delete("/api/providers/" + providerId).statusCode()).isEqualTo(409);
+
+        // Once its model is gone the provider goes too, and the usage row keeps its own copy of the code.
+        assertThat(delete("/api/models/" + modelId).statusCode()).isEqualTo(204);
+        assertThat(delete("/api/providers/" + providerId).statusCode()).isEqualTo(204);
+        assertThat(jdbc.queryForObject("select provider from llm_usage order by id desc limit 1", String.class))
+                .isEqualTo(code);
+    }
+
+    /** The provider registry is readable without a key ever being part of a response (spec v2 sections 9 and 10). */
+    @Test
+    void listsTheProvidersWithoutEverReturningAStoredKey() throws Exception {
+        JsonNode listing = JSON.readTree(get("/api/providers?size=50").body());
+
+        assertThat(listing.path("items")).isNotEmpty();
+        for (JsonNode provider : listing.path("items")) {
+            assertThat(provider.has("apiKey")).isFalse();
+            assertThat(provider.has("apiKeyCiphertext")).isFalse();
+        }
+        assertThat(get("/api/providers?size=50").body()).doesNotContain("integration-gemini-key");
+    }
+
     private HttpResponse<String> get(String path) throws Exception {
         return send(HttpRequest.newBuilder(URI.create(url(path))).GET().build());
     }
@@ -460,6 +543,10 @@ class FindingExplanationIntegrationTest {
                 .header("Content-Type", "application/json")
                 .PUT(HttpRequest.BodyPublishers.ofString(body))
                 .build());
+    }
+
+    private HttpResponse<String> delete(String path) throws Exception {
+        return send(HttpRequest.newBuilder(URI.create(url(path))).DELETE().build());
     }
 
     /** Named with an {@code api} prefix so it cannot be confused with WireMock's static {@code post}. */

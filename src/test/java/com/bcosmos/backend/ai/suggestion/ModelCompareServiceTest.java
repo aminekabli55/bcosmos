@@ -8,10 +8,11 @@ import static org.mockito.Mockito.when;
 
 import com.bcosmos.backend.ai.gateway.ModelRef;
 import com.bcosmos.backend.ai.gateway.ModelRegistry;
+import com.bcosmos.backend.ai.gateway.ProviderRef;
 import com.bcosmos.backend.ai.rag.EvidenceBundle;
 import com.bcosmos.backend.persistence.LlmModelCapability;
 import com.bcosmos.backend.persistence.LlmModelKind;
-import com.bcosmos.backend.persistence.LlmProvider;
+import com.bcosmos.backend.persistence.ProviderProtocol;
 import com.bcosmos.backend.persistence.SuggestionEntity;
 import com.bcosmos.backend.persistence.SuggestionStatus;
 import com.bcosmos.backend.web.dto.BenchmarkResponses.ModelCompareResponse;
@@ -24,6 +25,12 @@ import org.junit.jupiter.api.Test;
 @DisplayName("ModelCompareService side-by-side evaluation (Phase 6, spec section 7.4 & 8)")
 class ModelCompareServiceTest {
 
+    /** Since Phase 11 a call-time model carries its provider row, so the endpoint is named here and not in config. */
+    private static final ProviderRef GEMINI_PROVIDER = new ProviderRef(1L, "gemini", "Google Gemini",
+            ProviderProtocol.GEMINI, "http://localhost:1", "GEMINI_API_KEY", true);
+    private static final ProviderRef OPENAI_PROVIDER = new ProviderRef(2L, "openai", "OpenAI",
+            ProviderProtocol.OPENAI_COMPATIBLE, "http://localhost:1", "OPENAI_API_KEY", true);
+
     private final SuggestionService suggestionService = mock(SuggestionService.class);
     private final ModelRegistry modelRegistry = mock(ModelRegistry.class);
     private final ModelCompareService compareService = new ModelCompareService(suggestionService, modelRegistry);
@@ -31,9 +38,9 @@ class ModelCompareServiceTest {
     @Test
     @DisplayName("compares multiple models side-by-side on one finding")
     void comparesModelsSuccessfully() {
-        ModelRef model1 = new ModelRef(1L, LlmProvider.GEMINI, "gemini-2.5-flash", LlmModelKind.HOSTED,
+        ModelRef model1 = new ModelRef(1L, GEMINI_PROVIDER, "gemini-2.5-flash", LlmModelKind.HOSTED,
                 LlmModelCapability.CHAT, null, 128_000, new BigDecimal("0.000300"), new BigDecimal("0.002500"));
-        ModelRef model2 = new ModelRef(2L, LlmProvider.OPENAI_COMPATIBLE, "gpt-4o-mini", LlmModelKind.HOSTED,
+        ModelRef model2 = new ModelRef(2L, OPENAI_PROVIDER, "gpt-4o-mini", LlmModelKind.HOSTED,
                 LlmModelCapability.CHAT, null, 128_000, new BigDecimal("0.000150"), new BigDecimal("0.000600"));
 
         when(modelRegistry.require(1L)).thenReturn(model1);
@@ -98,9 +105,9 @@ class ModelCompareServiceTest {
     @Test
     @DisplayName("handles model error gracefully without failing other models in comparison")
     void handlesIndividualModelFailure() {
-        ModelRef model1 = new ModelRef(1L, LlmProvider.GEMINI, "gemini-2.5-flash", LlmModelKind.HOSTED,
+        ModelRef model1 = new ModelRef(1L, GEMINI_PROVIDER, "gemini-2.5-flash", LlmModelKind.HOSTED,
                 LlmModelCapability.CHAT, null, 128_000, new BigDecimal("0.000300"), new BigDecimal("0.002500"));
-        ModelRef model2 = new ModelRef(2L, LlmProvider.OPENAI_COMPATIBLE, "failed-model", LlmModelKind.HOSTED,
+        ModelRef model2 = new ModelRef(2L, OPENAI_PROVIDER, "failed-model", LlmModelKind.HOSTED,
                 LlmModelCapability.CHAT, null, 128_000, new BigDecimal("0.000150"), new BigDecimal("0.000600"));
 
         when(modelRegistry.require(1L)).thenReturn(model1);

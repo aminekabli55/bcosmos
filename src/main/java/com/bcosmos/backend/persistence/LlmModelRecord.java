@@ -9,11 +9,12 @@ import java.util.Objects;
  *
  * <p>The store port speaks this record so the model registry can be tested without a database and so nothing
  * outside {@code persistence} handles a managed entity. {@code id} is {@code null} for a row that has not been
- * inserted yet.</p>
+ * inserted yet. {@code provider} is the whole provider row: the model cannot be called without the endpoint that
+ * row carries (ADR 0038).</p>
  */
 public record LlmModelRecord(
         Long id,
-        LlmProvider provider,
+        LlmProviderRecord provider,
         String modelName,
         LlmModelKind kind,
         LlmModelCapability capability,

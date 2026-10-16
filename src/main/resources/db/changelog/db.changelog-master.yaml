@@ -93,3 +93,13 @@ databaseChangeLog:
       file: changes/0024-commit-review-repository-cascade.yaml
       relativeToChangelogFile: true
 
+  # Phase 11 (provider registry): a provider becomes a row, so a new vendor is data instead of a deployment.
+  - include:
+      file: changes/0025-create-llm-provider.yaml
+      relativeToChangelogFile: true
+
+  # Follow-up to 0025: the seeded model notes still named a configuration key that no longer exists.
+  - include:
+      file: changes/0026-fix-seeded-model-notes.yaml
+      relativeToChangelogFile: true
+

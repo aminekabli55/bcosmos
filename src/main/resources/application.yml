@@ -64,12 +64,11 @@ bcosmos:
     initial-backoff: ${BCOSMOS_AI_INITIAL_BACKOFF:500ms}
     backoff-multiplier: ${BCOSMOS_AI_BACKOFF_MULTIPLIER:2.0}
     max-output-tokens: ${BCOSMOS_AI_MAX_OUTPUT_TOKENS:2048}
-    providers:
-      gemini:
-        base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
-        api-key: ${GEMINI_API_KEY:}
-        api-key-env: GEMINI_API_KEY
-      openai-compatible:
-        base-url: ${OPENAI_BASE_URL:https://api.openai.com}
-        api-key: ${OPENAI_API_KEY:}
-        api-key-env: OPENAI_API_KEY
+    # Master key for credentials stored through the settings screen (ADR 0038). Absent means "no stored keys": a
+    # provider then reads the environment variable its row names, and pasting a key is refused with a message
+    # saying so. Generate it with: openssl rand -base64 32. Never commit a real value here.
+    secret-key: ${BCOSMOS_AI_SECRET_KEY:}
+    # Provider endpoints and credentials are no longer configuration: they are rows in llm_provider, seeded by
+    # changeset 0025 and editable in the Settings screen (spec v2 sections 7.1 and 10). Each row names the
+    # environment variable to fall back on - gemini names GEMINI_API_KEY, openai names OPENAI_API_KEY, deepseek
+    # names DEEPSEEK_API_KEY, claude names ANTHROPIC_API_KEY.

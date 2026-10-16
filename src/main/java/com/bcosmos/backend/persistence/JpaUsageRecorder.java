@@ -32,7 +32,7 @@ public class JpaUsageRecorder implements UsageRecorder {
         try {
             usage.save(new LlmUsageEntity(
                     row.model().id(),
-                    row.model().provider(),
+                    row.model().provider().code(),
                     row.model().modelName(),
                     row.operation(),
                     row.promptVersion(),

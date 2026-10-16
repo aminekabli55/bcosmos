@@ -2,8 +2,8 @@ package com.bcosmos.backend.ai.gateway;
 
 import com.bcosmos.backend.config.AiProperties;
 import com.bcosmos.backend.persistence.LlmOperation;
-import com.bcosmos.backend.persistence.LlmProvider;
 import com.bcosmos.backend.persistence.LlmUsageOutcome;
+import com.bcosmos.backend.persistence.ProviderProtocol;
 import io.github.resilience4j.retry.Retry;
 import java.time.Clock;
 import java.time.Duration;
@@ -39,7 +39,7 @@ public class LlmGateway implements LlmClient {
     private final AiProperties properties;
     private final AiEnablement enablement;
     private final ModelRegistry models;
-    private final Map<LlmProvider, LlmProviderAdapter> adapters;
+    private final Map<ProviderProtocol, LlmProviderAdapter> adapters;
     private final UsageRecorder usage;
     private final SecretRedactor redactor;
     private final JsonSchemaValidator schemaValidator;
@@ -54,7 +54,7 @@ public class LlmGateway implements LlmClient {
         this.enablement = enablement;
         this.models = models;
         this.adapters = adapterList.stream().collect(Collectors.toUnmodifiableMap(
-                LlmProviderAdapter::provider, Function.identity(), (first, second) -> first));
+                LlmProviderAdapter::protocol, Function.identity(), (first, second) -> first));
         this.usage = usage;
         this.redactor = redactor;
         this.schemaValidator = new JsonSchemaValidator();
@@ -125,7 +125,7 @@ public class LlmGateway implements LlmClient {
         ModelRef model = models.requireEmbeddingModel(request.modelId());
         Call call = new Call(model, LlmOperation.EMBED, null, clock.instant());
         try {
-            LlmProviderAdapter adapter = adapterFor(model.provider());
+            LlmProviderAdapter adapter = adapterFor(model.provider().protocol());
             ProviderEmbeddings embeddings = withRetries(call, () -> adapter.embed(model, request.texts()));
             requireDeclaredWidth(model, embeddings);
             call.addTokens(embeddings.tokensIn(), 0);
@@ -172,7 +172,7 @@ public class LlmGateway implements LlmClient {
 
     private ProviderCompletion complete(Call call, List<ChatMessage> messages, boolean jsonMode,
             Integer maxOutputTokens, Double temperature) {
-        LlmProviderAdapter adapter = adapterFor(call.model().provider());
+        LlmProviderAdapter adapter = adapterFor(call.model().provider().protocol());
         CompletionRequest request = new CompletionRequest(
                 redactor.redact(messages),
                 jsonMode,
@@ -196,7 +196,7 @@ public class LlmGateway implements LlmClient {
             throw failure;
         } catch (RuntimeException unexpected) {
             throw new LlmProviderException(LlmErrorCode.PROVIDER_ERROR,
-                    call.model().provider() + " call failed (" + unexpected.getClass().getSimpleName() + ")",
+                    call.model().provider().code() + " call failed (" + unexpected.getClass().getSimpleName() + ")",
                     false, unexpected);
         }
     }
@@ -257,10 +257,14 @@ public class LlmGateway implements LlmClient {
         }
     }
 
-    private LlmProviderAdapter adapterFor(LlmProvider provider) {
-        LlmProviderAdapter adapter = adapters.get(provider);
+    /**
+     * The adapter for a wire shape. The vendor is not consulted: two vendors speaking the same protocol share one
+     * adapter, which is why a new provider is a row and not a class (ADR 0038).
+     */
+    private LlmProviderAdapter adapterFor(ProviderProtocol protocol) {
+        LlmProviderAdapter adapter = adapters.get(protocol);
         if (adapter == null) {
-            throw new IllegalStateException("no adapter is registered for provider " + provider);
+            throw new IllegalStateException("no adapter is registered for protocol " + protocol);
         }
         return adapter;
     }

@@ -29,9 +29,15 @@ public class LlmUsageEntity {
     @Column(name = "model_id")
     private Long modelId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "provider", nullable = false, length = 40)
-    private LlmProvider provider;
+    /**
+     * The provider code, copied from the registry row when the call was made.
+     *
+     * <p>A copy on purpose: a usage row has to stay readable after the registry row is renamed, so this is not a
+     * foreign key and not an enum — an enum would make the usage history unreadable whenever a vendor list changes
+     * (ADR 0038).</p>
+     */
+    @Column(name = "provider", nullable = false, length = 60)
+    private String provider;
 
     @Column(name = "model_name", nullable = false, length = 120)
     private String modelName;
@@ -72,7 +78,7 @@ public class LlmUsageEntity {
     protected LlmUsageEntity() {
     }
 
-    public LlmUsageEntity(Long modelId, LlmProvider provider, String modelName, LlmOperation operation,
+    public LlmUsageEntity(Long modelId, String provider, String modelName, LlmOperation operation,
             String promptVersion, int tokensIn, int tokensOut, long latencyMs, int attempts,
             BigDecimal estimatedCostUsd, LlmUsageOutcome outcome, String errorCode, Instant createdAt) {
         this.modelId = modelId;
@@ -98,7 +104,7 @@ public class LlmUsageEntity {
         return modelId;
     }
 
-    public LlmProvider getProvider() {
+    public String getProvider() {
         return provider;
     }
 

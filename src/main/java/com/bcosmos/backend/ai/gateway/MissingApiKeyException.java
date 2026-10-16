@@ -1,16 +1,23 @@
 package com.bcosmos.backend.ai.gateway;
 
-import com.bcosmos.backend.persistence.LlmProvider;
-
 /**
- * The provider needs a credential and the environment does not have one.
+ * The provider needs a credential and neither source has one.
  *
- * <p>The message names the environment variable, never a value (spec v2 section 10).</p>
+ * <p>The message names the provider, the environment variable (when the row names one) and the way out. It never
+ * contains a value (spec v2 section 10).</p>
  */
 public class MissingApiKeyException extends LlmException {
 
-    public MissingApiKeyException(LlmProvider provider, String environmentVariable) {
-        super(LlmErrorCode.MISSING_API_KEY,
-                "no API key for provider " + provider + ": set " + environmentVariable + " in the environment", false);
+    public MissingApiKeyException(String providerCode, String environmentVariable) {
+        super(LlmErrorCode.MISSING_API_KEY, message(providerCode, environmentVariable), false);
+    }
+
+    private static String message(String providerCode, String environmentVariable) {
+        if (environmentVariable == null || environmentVariable.isBlank()) {
+            return "no API key for provider " + providerCode + ": store one in Settings, or name an environment "
+                    + "variable for this provider";
+        }
+        return "no API key for provider " + providerCode + ": set " + environmentVariable + " in the environment, "
+                + "or store one in Settings";
     }
 }

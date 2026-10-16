@@ -8,7 +8,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.bcosmos.backend.persistence.LlmProvider;
+import com.bcosmos.backend.persistence.LlmProviderRecord;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
@@ -152,8 +152,13 @@ class GeminiAdapterTest {
     }
 
     private GeminiAdapter adapter(Duration timeout) {
-        var properties = AiTestSupport.properties(true, server.baseUrl(), server.baseUrl(), timeout, 2);
-        return new GeminiAdapter(properties, new ProviderCredentials(properties), JSON);
+        return new GeminiAdapter(AiTestSupport.properties(true, timeout, 2),
+                AiTestSupport.credentials(geminiProvider()), JSON);
+    }
+
+    /** The provider row the fake server stands in for: the endpoint lives on the row, not in configuration. */
+    private static LlmProviderRecord geminiProvider() {
+        return AiTestSupport.gemini(server.baseUrl());
     }
 
     private static CompletionRequest request() {
@@ -161,11 +166,11 @@ class GeminiAdapterTest {
     }
 
     private static ModelRef model() {
-        return ModelRegistry.toRef(AiTestSupport.model(1, LlmProvider.GEMINI, "gemini-2.5-flash", true, true));
+        return ModelRegistry.toRef(AiTestSupport.model(1, geminiProvider(), "gemini-2.5-flash", true, true));
     }
 
     private static ModelRef embeddingModel() {
-        return ModelRegistry.toRef(AiTestSupport.model(4, LlmProvider.GEMINI, "text-embedding-004", true, false));
+        return ModelRegistry.toRef(AiTestSupport.model(4, geminiProvider(), "text-embedding-004", true, false));
     }
 
     private static ResponseDefinitionBuilder json(String body) {

@@ -2,32 +2,37 @@ package com.bcosmos.backend.ai.gateway;
 
 import static com.bcosmos.backend.ai.gateway.AiTestSupport.embeddingModel;
 import static com.bcosmos.backend.ai.gateway.AiTestSupport.model;
-import static com.bcosmos.backend.ai.gateway.AiTestSupport.properties;
-import static com.bcosmos.backend.ai.gateway.AiTestSupport.propertiesWithoutKeys;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.bcosmos.backend.persistence.LlmModelCapability;
-import com.bcosmos.backend.persistence.LlmProvider;
+import com.bcosmos.backend.persistence.LlmModelKind;
+import com.bcosmos.backend.persistence.LlmProviderRecord;
 import java.math.BigDecimal;
 import java.time.Clock;
-import java.time.Duration;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /** The registry is the only gate between a finding and a provider, so every rule is checked here. */
 class ModelRegistryTest {
 
+    private static final String NO_WHERE = "http://localhost:1";
+
+    private static final LlmProviderRecord GEMINI = AiTestSupport.gemini(NO_WHERE);
+    private static final LlmProviderRecord OPENAI = AiTestSupport.openai(NO_WHERE);
+
     private final AiTestSupport.FakeModelStore store = new AiTestSupport.FakeModelStore(
-            model(1, LlmProvider.GEMINI, "gemini-2.5-flash", true, true),
-            model(2, LlmProvider.OPENAI_COMPATIBLE, "gpt-4o-mini", false, false),
-            model(3, LlmProvider.GEMINI, "gemini-2.5-pro", false, false),
-            embeddingModel(4, LlmProvider.GEMINI, "gemini-embedding-2", true, true, 1536),
-            embeddingModel(5, LlmProvider.OPENAI_COMPATIBLE, "text-embedding-3-small", false, false, 1536));
+            model(1, GEMINI, "gemini-2.5-flash", true, true),
+            model(2, OPENAI, "gpt-4o-mini", false, false),
+            model(3, GEMINI, "gemini-2.5-pro", false, false),
+            embeddingModel(4, GEMINI, "gemini-embedding-2", true, true, 1536),
+            embeddingModel(5, OPENAI, "text-embedding-3-small", false, false, 1536));
 
-    private final ProviderCredentials credentials = new ProviderCredentials(
-            properties(true, "http://localhost:1", "http://localhost:1", Duration.ofSeconds(5), 2));
+    private final AiTestSupport.FakeProviderStore providerStore = new AiTestSupport.FakeProviderStore(GEMINI, OPENAI);
 
-    private final ModelRegistry registry = new ModelRegistry(store, credentials, Clock.systemUTC());
+    private final ProviderCredentials credentials = AiTestSupport.credentials(GEMINI, OPENAI);
+
+    private final ModelRegistry registry = new ModelRegistry(store, providerStore, credentials, Clock.systemUTC());
 
     @Test
     void resolvesTheDefaultModelWhenACallNamesNone() {
@@ -51,21 +56,23 @@ class ModelRegistryTest {
 
     @Test
     void refusesToEnableAModelWhoseProviderHasNoKey() {
-        ModelRegistry keyless = new ModelRegistry(store, new ProviderCredentials(propertiesWithoutKeys(true)),
-                Clock.systemUTC());
+        // No environment and no stored key: the provider row names OPENAI_API_KEY, which is not set here.
+        ProviderCredentials keyless = AiTestSupport.credentials(Map.of(), GEMINI, OPENAI);
+        ModelRegistry registryWithoutKeys = new ModelRegistry(store, providerStore, keyless, Clock.systemUTC());
 
-        assertThatThrownBy(() -> keyless.edit(2, new ModelEdit(true, null, null, null, null, null)))
+        assertThatThrownBy(() -> registryWithoutKeys.edit(2, new ModelEdit(true, null, null, null, null, null)))
                 .isInstanceOf(MissingApiKeyException.class)
                 .hasMessageContaining("OPENAI_API_KEY")
-                .hasMessageContaining("OPENAI_COMPATIBLE");
+                .hasMessageContaining("openai");
     }
 
     @Test
-    void reportsWhichProvidersHaveACredential() {
-        ModelListing withKey = registry.listing().stream().filter(row -> row.id() == 1L).findFirst().orElseThrow();
+    void reportsWhereEachProviderCredentialComesFrom() {
+        ModelListing fromEnvironment = registry.listing().stream().filter(row -> row.id() == 1L).findFirst()
+                .orElseThrow();
 
-        assertThat(withKey.credentialConfigured()).isTrue();
-        assertThat(withKey.credentialEnvironmentVariable()).isEqualTo("GEMINI_API_KEY");
+        assertThat(fromEnvironment.credentialSource()).isEqualTo(CredentialSource.ENVIRONMENT);
+        assertThat(fromEnvironment.credentialEnvironmentVariable()).isEqualTo(AiTestSupport.GEMINI_ENV);
     }
 
     @Test
@@ -142,8 +149,92 @@ class ModelRegistryTest {
 
     @Test
     void resolvesTheProviderOfAModel() {
-        assertThat(ModelRegistry.providerOf(registry.require(2))).isEqualTo(LlmProvider.OPENAI_COMPATIBLE);
+        assertThat(ModelRegistry.providerOf(registry.require(2)).code()).isEqualTo("openai");
         assertThat(registry.hasCredential(registry.require(2))).isTrue();
         assertThat(registry.all()).hasSize(5);
+    }
+
+    // --- registering and removing models at runtime (Phase 11) -------------------------------------------------
+
+    @Test
+    void registersAModelOfAnExistingProviderWithSensibleDefaults() {
+        ModelListing created = registry.create(draft("deepseek-chat"));
+
+        assertThat(created.provider().code()).isEqualTo("openai");
+        assertThat(created.modelName()).isEqualTo("deepseek-chat");
+        assertThat(created.kind()).isEqualTo(LlmModelKind.HOSTED);
+        assertThat(created.capability()).isEqualTo(LlmModelCapability.CHAT);
+        assertThat(created.contextWindow()).isEqualTo(128_000);
+        // A model added through the screen is a fresh opt-in decision, so it starts switched off.
+        assertThat(created.enabled()).isFalse();
+        assertThat(registry.listing()).hasSize(6);
+    }
+
+    @Test
+    void refusesTwoModelsOfTheSameNameOnOneProvider() {
+        assertThatThrownBy(() -> registry.create(draft("gpt-4o-mini")))
+                .isInstanceOf(DuplicateModelException.class)
+                .hasMessageContaining("gpt-4o-mini");
+    }
+
+    @Test
+    void refusesAModelOnAProviderThatDoesNotExist() {
+        assertThatThrownBy(() -> registry.create(new ModelDraft(99L, "whatever", null, null, null, false, null,
+                null, null, null, null)))
+                .isInstanceOf(ProviderNotFoundException.class)
+                .hasMessageContaining("99");
+    }
+
+    @Test
+    void refusesToRegisterAnEnabledModelWhenItsProviderHasNoKey() {
+        ModelRegistry registryWithoutKeys = new ModelRegistry(store, providerStore,
+                AiTestSupport.credentials(Map.of(), GEMINI, OPENAI), Clock.systemUTC());
+
+        assertThatThrownBy(() -> registryWithoutKeys.create(new ModelDraft(2L, "gpt-4o", null, null, null, true,
+                null, null, null, null, null)))
+                .isInstanceOf(MissingApiKeyException.class)
+                .hasMessageContaining(AiTestSupport.OPENAI_ENV);
+    }
+
+    @Test
+    void refusesAnEmbeddingModelWithoutADeclaredWidth() {
+        assertThatThrownBy(() -> registry.create(new ModelDraft(2L, "text-embedding-3-large", null,
+                LlmModelCapability.EMBEDDING, null, false, null, null, null, null, null)))
+                .isInstanceOf(InvalidModelUpdateException.class)
+                .hasMessageContaining("embeddingDimension");
+    }
+
+    @Test
+    void registeringADefaultClearsThePreviousOne() {
+        ModelListing created = registry.create(new ModelDraft(1L, "gemini-3-pro", null, null, null, true, true, null,
+                null, null, null));
+
+        assertThat(created.defaultModel()).isTrue();
+        assertThat(store.defaults(LlmModelCapability.CHAT)).extracting("modelName").containsExactly("gemini-3-pro");
+        assertThat(registry.requireUsable(null).modelName()).isEqualTo("gemini-3-pro");
+    }
+
+    @Test
+    void removesAModelThatIsNotTheDefault() {
+        registry.delete(3L);
+
+        assertThat(registry.listing()).hasSize(4);
+        assertThatThrownBy(() -> registry.require(3L)).isInstanceOf(ModelNotFoundException.class);
+    }
+
+    @Test
+    void refusesToRemoveTheDefaultModel() {
+        assertThatThrownBy(() -> registry.delete(1L))
+                .isInstanceOf(InvalidModelUpdateException.class)
+                .hasMessageContaining("make another model the default before deleting it");
+    }
+
+    @Test
+    void refusesToRemoveAModelThatIsNotThere() {
+        assertThatThrownBy(() -> registry.delete(99L)).isInstanceOf(ModelNotFoundException.class);
+    }
+
+    private static ModelDraft draft(String modelName) {
+        return new ModelDraft(2L, modelName, null, null, null, false, null, null, null, null, null);
     }
 }
