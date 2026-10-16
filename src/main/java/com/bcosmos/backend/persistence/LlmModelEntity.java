@@ -52,9 +52,6 @@ public class LlmModelEntity {
     @Column(name = "enabled", nullable = false)
     private boolean enabled;
 
-    @Column(name = "is_default", nullable = false)
-    private boolean defaultModel;
-
     @Column(name = "context_window", nullable = false)
     private int contextWindow;
 
@@ -78,7 +75,7 @@ public class LlmModelEntity {
     }
 
     public LlmModelEntity(LlmProviderEntity provider, String modelName, LlmModelKind kind,
-            LlmModelCapability capability, Integer embeddingDimension, boolean enabled, boolean defaultModel,
+            LlmModelCapability capability, Integer embeddingDimension, boolean enabled,
             int contextWindow, BigDecimal costPer1kIn, BigDecimal costPer1kOut, String notes, Instant now) {
         this.provider = Objects.requireNonNull(provider, "provider");
         this.modelName = Objects.requireNonNull(modelName, "modelName");
@@ -86,7 +83,6 @@ public class LlmModelEntity {
         this.capability = capability == null ? LlmModelCapability.CHAT : capability;
         this.embeddingDimension = embeddingDimension;
         this.enabled = enabled;
-        this.defaultModel = defaultModel;
         this.contextWindow = contextWindow;
         this.costPer1kIn = Objects.requireNonNull(costPer1kIn, "costPer1kIn");
         this.costPer1kOut = Objects.requireNonNull(costPer1kOut, "costPer1kOut");
@@ -96,13 +92,10 @@ public class LlmModelEntity {
     }
 
     /** Applies an edit from the settings screen. {@code null} means "leave as it is" for optional values. */
-    public void edit(Boolean newEnabled, Boolean newDefaultModel, Integer newContextWindow, BigDecimal newCostPer1kIn,
+    public void edit(Boolean newEnabled, Integer newContextWindow, BigDecimal newCostPer1kIn,
             BigDecimal newCostPer1kOut, String newNotes, Instant now) {
         if (newEnabled != null) {
             this.enabled = newEnabled;
-        }
-        if (newDefaultModel != null) {
-            this.defaultModel = newDefaultModel;
         }
         if (newContextWindow != null) {
             this.contextWindow = newContextWindow;
@@ -145,10 +138,6 @@ public class LlmModelEntity {
 
     public boolean isEnabled() {
         return enabled;
-    }
-
-    public boolean isDefaultModel() {
-        return defaultModel;
     }
 
     public int getContextWindow() {

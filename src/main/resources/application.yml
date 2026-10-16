@@ -56,6 +56,11 @@ bcosmos:
     token-budget: ${BCOSMOS_RETRIEVAL_TOKEN_BUDGET:6000}
     max-chunk-chars: ${BCOSMOS_RETRIEVAL_MAX_CHUNK_CHARS:6000}
     embed-batch-size: ${BCOSMOS_RETRIEVAL_EMBED_BATCH_SIZE:16}
+    # How long one index build may sit out rate limits in total (ADR 0041). The per-call budget (bcosmos.ai.timeout)
+    # is deliberately too short to absorb a per-minute quota window, so the build waits here instead: it sleeps what
+    # the provider asked for and retries the batch. A quota that asks for longer than this fails the build with the
+    # wait in the message, because a spent daily quota cannot be waited out.
+    rate-limit-patience: ${BCOSMOS_RETRIEVAL_RATE_LIMIT_PATIENCE:2m}
   ai:
     enabled: ${BCOSMOS_AI_ENABLED:false}
     timeout: ${BCOSMOS_AI_TIMEOUT:30s}
@@ -66,8 +71,15 @@ bcosmos:
     max-output-tokens: ${BCOSMOS_AI_MAX_OUTPUT_TOKENS:2048}
     # Master key for credentials stored through the settings screen (ADR 0038). Absent means "no stored keys": a
     # provider then reads the environment variable its row names, and pasting a key is refused with a message
-    # saying so. Generate it with: openssl rand -base64 32. Never commit a real value here.
+    # saying so. Generate it with: openssl rand -base64 32. Never commit a real value here. It wins over the key
+    # file below, so a deployment states its key and no file decides for it.
     secret-key: ${BCOSMOS_AI_SECRET_KEY:}
+    # A file to keep the master key in instead of the environment (ADR 0039). Empty here: outside the dev profile
+    # there is no file and nothing is generated, so this stays an environment-only deployment.
+    secret-key-file: ${BCOSMOS_AI_SECRET_KEY_FILE:}
+    # Whether a missing or empty key file may be filled with a freshly generated key. Off by default, on in dev:
+    # a production deployment states its key and never invents one on a container filesystem.
+    generate-secret-key: ${BCOSMOS_AI_GENERATE_SECRET_KEY:false}
     # Provider endpoints and credentials are no longer configuration: they are rows in llm_provider, seeded by
     # changeset 0025 and editable in the Settings screen (spec v2 sections 7.1 and 10). Each row names the
     # environment variable to fall back on - gemini names GEMINI_API_KEY, openai names OPENAI_API_KEY, deepseek

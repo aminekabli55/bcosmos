@@ -20,7 +20,6 @@ public record LlmModelRecord(
         LlmModelCapability capability,
         Integer embeddingDimension,
         boolean enabled,
-        boolean defaultModel,
         int contextWindow,
         BigDecimal costPer1kIn,
         BigDecimal costPer1kOut,
@@ -45,7 +44,7 @@ public record LlmModelRecord(
     }
 
     /** This row with an edit applied; a {@code null} argument leaves that field alone. */
-    public LlmModelRecord withEdit(Boolean newEnabled, Boolean newDefaultModel, Integer newContextWindow,
+    public LlmModelRecord withEdit(Boolean newEnabled, Integer newContextWindow,
             BigDecimal newCostPer1kIn, BigDecimal newCostPer1kOut, String newNotes, Instant now) {
         return new LlmModelRecord(
                 id,
@@ -55,7 +54,6 @@ public record LlmModelRecord(
                 capability,
                 embeddingDimension,
                 newEnabled == null ? enabled : newEnabled,
-                newDefaultModel == null ? defaultModel : newDefaultModel,
                 newContextWindow == null ? contextWindow : newContextWindow,
                 newCostPer1kIn == null ? costPer1kIn : newCostPer1kIn,
                 newCostPer1kOut == null ? costPer1kOut : newCostPer1kOut,

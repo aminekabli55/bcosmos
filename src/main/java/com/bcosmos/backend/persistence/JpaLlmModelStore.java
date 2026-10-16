@@ -27,11 +27,6 @@ public class JpaLlmModelStore implements LlmModelStore {
     }
 
     @Override
-    public Optional<LlmModelRecord> findDefault(LlmModelCapability capability) {
-        return models.findByCapabilityAndDefaultModelTrue(capability).map(JpaLlmModelStore::toRecord);
-    }
-
-    @Override
     public List<LlmModelRecord> findByCapability(LlmModelCapability capability) {
         return models.findByCapabilityOrderByProviderIdAscModelNameAsc(capability).stream()
                 .map(JpaLlmModelStore::toRecord)
@@ -51,7 +46,6 @@ public class JpaLlmModelStore implements LlmModelStore {
                     model.capability(),
                     model.embeddingDimension(),
                     model.enabled(),
-                    model.defaultModel(),
                     model.contextWindow(),
                     model.costPer1kIn(),
                     model.costPer1kOut(),
@@ -60,7 +54,7 @@ public class JpaLlmModelStore implements LlmModelStore {
         }
         LlmModelEntity entity = models.findById(model.id())
                 .orElseThrow(() -> new IllegalStateException("registry row " + model.id() + " disappeared"));
-        entity.edit(model.enabled(), model.defaultModel(), model.contextWindow(), model.costPer1kIn(),
+        entity.edit(model.enabled(), model.contextWindow(), model.costPer1kIn(),
                 model.costPer1kOut(), model.notes(), model.updatedAt());
         return toRecord(models.save(entity));
     }
@@ -89,7 +83,6 @@ public class JpaLlmModelStore implements LlmModelStore {
                 entity.getCapability(),
                 entity.getEmbeddingDimension(),
                 entity.isEnabled(),
-                entity.isDefaultModel(),
                 entity.getContextWindow(),
                 entity.getCostPer1kIn(),
                 entity.getCostPer1kOut(),

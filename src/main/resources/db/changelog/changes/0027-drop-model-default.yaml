@@ -1,0 +1,27 @@
+databaseChangeLog:
+  # 0008 gave llm_model an is_default flag so a request that named no model could still be answered, and 0014 made
+  # it one default per capability (a chat default and an embedding default). In practice the flag only ever made a
+  # choice implicit: the settings screen showed two rows marked "default" with nothing saying they were defaults of
+  # different things, and every AI screen silently ran on whichever row happened to be marked. The registry now
+  # requires the caller to name the model it wants (ADR 0042), so the column has no reader left. Dropping it is the
+  # honest move: a flag nobody consults is a flag that will disagree with the code again.
+  - changeSet:
+      id: 0027-drop-model-default
+      author: bcosmos
+      comment: >-
+        Remove llm_model.is_default: the model a call uses is named by the caller, never inferred from a row.
+      changes:
+        - dropColumn:
+            tableName: llm_model
+            columnName: is_default
+      rollback:
+        - addColumn:
+            tableName: llm_model
+            columns:
+              - column:
+                  name: is_default
+                  type: boolean
+                  defaultValueBoolean: false
+                  remarks: The model used when a request does not name one. No longer read by the API (ADR 0042).
+                  constraints:
+                    nullable: false

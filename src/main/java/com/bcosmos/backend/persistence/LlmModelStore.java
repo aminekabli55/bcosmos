@@ -18,9 +18,6 @@ public interface LlmModelStore {
     /** One row by registry id. */
     Optional<LlmModelRecord> findById(long id);
 
-    /** The row marked as default for one capability, if any. */
-    Optional<LlmModelRecord> findDefault(LlmModelCapability capability);
-
     /** Rows of one capability, ordered by provider and model name. */
     List<LlmModelRecord> findByCapability(LlmModelCapability capability);
 

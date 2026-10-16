@@ -87,14 +87,29 @@ class OpenAiCompatibleAdapterTest {
     }
 
     @Test
-    void treatsRateLimitingAsRetryable() {
+    void treatsRateLimitingAsItsOwnRetryableFailure() {
         server.stubFor(post(urlEqualTo(CHAT_PATH)).willReturn(aResponse().withStatus(429)));
 
         assertThatThrownBy(() -> adapter.complete(model(), request()))
                 .isInstanceOfSatisfying(LlmProviderException.class, failure -> {
                     assertThat(failure.retryable()).isTrue();
-                    assertThat(failure.errorCode()).isEqualTo(LlmErrorCode.PROVIDER_ERROR);
+                    assertThat(failure.errorCode()).isEqualTo(LlmErrorCode.RATE_LIMITED);
                     assertThat(failure.getMessage()).contains("429");
+                    // Nothing in this answer says when to come back, so no wait is invented for it (ADR 0040).
+                    assertThat(failure.instructedWait()).isZero();
+                });
+    }
+
+    @Test
+    void readsTheRetryAfterHeaderOfARateLimit() {
+        server.stubFor(post(urlEqualTo(CHAT_PATH))
+                .willReturn(aResponse().withStatus(429).withHeader("Retry-After", "30")));
+
+        assertThatThrownBy(() -> adapter.complete(model(), request()))
+                .isInstanceOfSatisfying(LlmProviderException.class, failure -> {
+                    assertThat(failure.errorCode()).isEqualTo(LlmErrorCode.RATE_LIMITED);
+                    assertThat(failure.instructedWait()).isEqualTo(Duration.ofSeconds(30));
+                    assertThat(failure.getMessage()).contains("30s");
                 });
     }
 

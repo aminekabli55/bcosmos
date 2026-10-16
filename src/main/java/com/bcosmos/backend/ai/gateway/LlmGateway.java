@@ -184,11 +184,16 @@ public class LlmGateway implements LlmClient {
     private <T> T withRetries(Call call, Supplier<T> attempt) {
         Supplier<T> guarded = () -> {
             if (call.budgetExhausted(properties.timeout())) {
-                throw new LlmTimeoutException("the call to " + call.model().label() + " exceeded the "
-                        + properties.timeout() + " budget", false);
+                throw call.outOfTime(properties.timeout());
             }
             call.countAttempt();
-            return attempt.get();
+            try {
+                return attempt.get();
+            } catch (LlmException failure) {
+                // Kept so that giving up can report the reason the provider gave, not just that we ran out of time.
+                call.remember(failure);
+                throw failure;
+            }
         };
         try {
             return Retry.decorateSupplier(retry, guarded).get();
@@ -281,6 +286,7 @@ public class LlmGateway implements LlmClient {
         private int attempts;
         private int tokensIn;
         private int tokensOut;
+        private LlmException lastFailure;
 
         private Call(ModelRef model, LlmOperation operation, String promptVersion, Instant startedAt) {
             this.model = model;
@@ -312,6 +318,34 @@ public class LlmGateway implements LlmClient {
 
         private boolean budgetExhausted(Duration budget) {
             return System.nanoTime() - startedNanos >= budget.toNanos();
+        }
+
+        private void remember(LlmException failure) {
+            this.lastFailure = failure;
+        }
+
+        /**
+         * What to throw when the budget is gone before another attempt can be made.
+         *
+         * <p>Exhausting the budget is reported as a timeout only when nothing better is known. A provider that
+         * asked us to wait longer than the budget allows is reported as what it is: the wait is the reason there
+         * was no second attempt, and a timeout would hide both the cause and the length of the wait the operator has
+         * to sit out (ADR 0040).</p>
+         *
+         * <p>The failure is not marked retryable, because this is where retrying stops: the budget that made it
+         * impossible is not going to grow, and a loop that kept asking would only spend the provider's quota
+         * again.</p>
+         */
+        private LlmException outOfTime(Duration budget) {
+            if (lastFailure != null && !lastFailure.instructedWait().isZero()) {
+                return new LlmProviderException(LlmErrorCode.RATE_LIMITED, model.label() + " rate limited the call and"
+                        + " asked to wait " + RetryWait.describe(lastFailure.instructedWait())
+                        + ", longer than the " + RetryWait.describe(budget) + " budget of one call"
+                        + " (bcosmos.ai.timeout,"
+                        + " BCOSMOS_AI_TIMEOUT); re-run it once the window has passed", false, lastFailure);
+            }
+            return new LlmTimeoutException("the call to " + model.label() + " exceeded the " + budget + " budget",
+                    false);
         }
 
         private LlmUsage usage() {

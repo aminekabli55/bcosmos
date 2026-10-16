@@ -13,7 +13,6 @@ import java.math.BigDecimal;
  * a full-row update would let two open tabs overwrite each other.</p>
  *
  * @param enabled       per-model opt-in for sending code to the provider
- * @param defaultModel  whether this model becomes the default; clearing the current default is refused
  * @param contextWindow tokens the provider accepts per request
  * @param costPer1kIn   estimated price per 1000 input tokens
  * @param costPer1kOut  estimated price per 1000 output tokens
@@ -21,13 +20,12 @@ import java.math.BigDecimal;
  */
 public record UpdateModelRequest(
         Boolean enabled,
-        Boolean defaultModel,
         @Positive Integer contextWindow,
         @PositiveOrZero BigDecimal costPer1kIn,
         @PositiveOrZero BigDecimal costPer1kOut,
         @Size(max = 500) String notes) {
 
     public ModelEdit toEdit() {
-        return new ModelEdit(enabled, defaultModel, contextWindow, costPer1kIn, costPer1kOut, notes);
+        return new ModelEdit(enabled, contextWindow, costPer1kIn, costPer1kOut, notes);
     }
 }

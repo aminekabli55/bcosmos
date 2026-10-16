@@ -8,6 +8,7 @@ import com.bcosmos.backend.ai.gateway.LlmDisabledException;
 import com.bcosmos.backend.ai.gateway.LlmUsage;
 import com.bcosmos.backend.ai.gateway.ModelRef;
 import com.bcosmos.backend.ai.gateway.ModelRegistry;
+import com.bcosmos.backend.ai.gateway.RateLimitPatience;
 import com.bcosmos.backend.config.RetrievalProperties;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -25,6 +26,11 @@ import org.springframework.stereotype.Service;
  *
  * <p>No transaction is held across a provider call: the chunks are embedded first, and the rows are replaced in
  * one short transaction afterwards. A provider failure therefore cannot leave a half-written index behind.</p>
+ *
+ * <p>A build is a sequence rather than one answer, so it sits out the rate limits it can afford to: each batch is
+ * wrapped in a {@link RateLimitPatience}, which sleeps what the provider asked for and retries that batch, up to
+ * {@code bcosmos.retrieval.rate-limit-patience} for the build as a whole (ADR 0041). The per-call budget stays what
+ * it was — one call still fails fast — and the sleeping happens between calls, with no database connection open.</p>
  */
 @Service
 public class EmbeddingService {
@@ -88,11 +94,15 @@ public class EmbeddingService {
 
         List<CodeChunkStore.EmbeddedChunk> embedded = new ArrayList<>(drafts.size());
         Tokens tokens = new Tokens();
+        // One patience per build, not one per call: it is the index build as a whole that may sit out a few quota
+        // windows, and the gateway's per-call budget is deliberately too short to absorb one (ADR 0041).
+        RateLimitPatience patience = new RateLimitPatience(properties.rateLimitPatience(),
+                RateLimitPatience.Sleeper.THREAD);
         for (int start = 0; start < drafts.size(); start += properties.embedBatchSize()) {
             List<CodeChunkDraft> batch = drafts.subList(start, Math.min(start + properties.embedBatchSize(),
                     drafts.size()));
-            EmbedResult result = llm.embed(new EmbedRequest(model.id(),
-                    batch.stream().map(CodeChunkDraft::text).toList()));
+            List<String> texts = batch.stream().map(CodeChunkDraft::text).toList();
+            EmbedResult result = patience.call(() -> llm.embed(new EmbedRequest(model.id(), texts)));
             if (result.vectors().size() != batch.size()) {
                 // The gateway checks the width; the count is checked here, because a provider that drops a text
                 // would silently shift every later vector onto the wrong chunk.

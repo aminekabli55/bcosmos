@@ -25,7 +25,6 @@ public record ModelListing(
         LlmModelCapability capability,
         Integer embeddingDimension,
         boolean enabled,
-        boolean defaultModel,
         int contextWindow,
         BigDecimal costPer1kIn,
         BigDecimal costPer1kOut,

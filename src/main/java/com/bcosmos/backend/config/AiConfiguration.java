@@ -7,6 +7,7 @@ import com.bcosmos.backend.ai.gateway.LlmClient;
 import com.bcosmos.backend.ai.gateway.LlmException;
 import com.bcosmos.backend.ai.gateway.LlmGateway;
 import com.bcosmos.backend.ai.gateway.LlmProviderAdapter;
+import com.bcosmos.backend.ai.gateway.MasterKeySource;
 import com.bcosmos.backend.ai.gateway.ModelRegistry;
 import com.bcosmos.backend.ai.gateway.OpenAiCompatibleAdapter;
 import com.bcosmos.backend.ai.gateway.PromptTemplateLoader;
@@ -18,9 +19,11 @@ import com.bcosmos.backend.ai.gateway.UsageRecorder;
 import com.bcosmos.backend.persistence.LlmModelStore;
 import com.bcosmos.backend.persistence.LlmProviderStore;
 import io.github.resilience4j.core.IntervalFunction;
+import io.github.resilience4j.core.functions.Either;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.List;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -52,14 +55,15 @@ public class AiConfiguration {
     }
 
     /**
-     * The master key that protects credentials stored through the settings screen (ADR 0038).
+     * The master key that protects credentials stored through the settings screen (ADR 0038, ADR 0039).
      *
      * <p>Built eagerly on purpose: a malformed key fails the startup with a message naming the property, instead of
      * failing at the first call that needed to decrypt something.</p>
      */
     @Bean
     public SecretCipher secretCipher(AiProperties properties) {
-        return SecretCipher.fromBase64(properties.secretKey());
+        return MasterKeySource.resolve(properties.secretKey(), properties.secretKeyPath(),
+                properties.generateSecretKey());
     }
 
     @Bean
@@ -120,14 +124,41 @@ public class AiConfiguration {
      * tests need exactly the same object.</p>
      */
     public static Retry retryFor(AiProperties properties) {
+        IntervalFunction backoff = IntervalFunction.ofExponentialBackoff(properties.initialBackoff(),
+                properties.backoffMultiplier());
         RetryConfig config = RetryConfig.custom()
                 .maxAttempts(properties.maxAttempts())
-                .intervalFunction(IntervalFunction.ofExponentialBackoff(properties.initialBackoff(),
-                        properties.backoffMultiplier()))
+                .intervalBiFunction((attempt, outcome) -> waitBeforeRetry(properties, backoff, attempt, outcome))
                 .retryOnException(failure -> failure instanceof LlmException llm && llm.retryable())
                 .failAfterMaxAttempts(false)
                 .build();
         return Retry.of("llm-gateway", config);
+    }
+
+    /**
+     * How long to wait before the next attempt.
+     *
+     * <p>A provider that answers 429 usually says when to come back, in a {@code Retry-After} header or (at Google)
+     * in the error body, and that number beats any guess we could make: a per-minute quota window is still closed
+     * long after 500 ms, so the retry that the backoff buys is a retry that cannot succeed, paid for every time
+     * (ADR 0040).</p>
+     *
+     * <p>An informed wait is only taken when the whole budget of one call can afford it. A provider asking for an
+     * hour while {@code bcosmos.ai.timeout} says 30s is not a reason to hold a request for an hour - the retry goes
+     * ahead at once and the failure itself carries the wait, so the operator reads "it asks to wait 1h 0m" instead of
+     * waiting for it.</p>
+     *
+     * <p>Everything else keeps the exponential backoff.</p>
+     */
+    private static long waitBeforeRetry(AiProperties properties, IntervalFunction backoff, Integer attempt,
+            Either<Throwable, Object> outcome) {
+        if (outcome.isLeft() && outcome.getLeft() instanceof LlmException failure) {
+            Duration instructed = failure.instructedWait();
+            if (!instructed.isZero()) {
+                return instructed.compareTo(properties.timeout()) <= 0 ? instructed.toMillis() : 0L;
+            }
+        }
+        return backoff.apply(attempt);
     }
 
     /**

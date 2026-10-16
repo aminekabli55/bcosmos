@@ -126,6 +126,77 @@ class LlmGatewayTest {
     }
 
     @Test
+    void waitsTheTimeTheProviderAskedForBeforeTheSecondAttempt() {
+        // A rate limit is the one failure the provider times for us. On a per-minute quota the configured backoff
+        // (10 ms in these tests) comes back long before the window opens, so the retry it buys cannot succeed
+        // (ADR 0040).
+        firstEmbedIsRateLimitedThen("1", json("{\"embeddings\": [{\"values\": [0.5, 0.25]}]}"), "rate-limit-wait");
+
+        long startedAt = System.nanoTime();
+        EmbedResult result = gateway.embed(new EmbedRequest(null, List.of("public final class Book")));
+        Duration elapsed = Duration.ofNanos(System.nanoTime() - startedAt);
+
+        assertThat(result.vectors()).hasSize(1);
+        assertThat(result.usage().attempts()).isEqualTo(2);
+        assertThat(elapsed).isGreaterThanOrEqualTo(Duration.ofSeconds(1));
+        assertThat(recorder.rows()).singleElement()
+                .satisfies(row -> assertThat(row.outcome()).isEqualTo(LlmUsageOutcome.SUCCESS));
+    }
+
+    @Test
+    void keepsItsOwnBackoffWhenTheRateLimitSaysNothingUsable() {
+        firstEmbedIsRateLimitedThen(null, json("{\"embeddings\": [{\"values\": [0.5, 0.25]}]}"), "no-wait");
+
+        EmbedResult result = gateway.embed(new EmbedRequest(null, List.of("public final class Book")));
+
+        assertThat(result.vectors()).hasSize(1);
+        assertThat(result.usage().attempts()).isEqualTo(2);
+    }
+
+    @Test
+    void reportsEachRateLimitAsItsOwnFailureAndKeepsTheWaitTheProviderAskedFor() {
+        server.stubFor(post(urlEqualTo(EMBED_PATH))
+                .willReturn(aResponse().withStatus(429).withHeader("Retry-After", "30")));
+
+        assertThatThrownBy(() -> gateway.embed(new EmbedRequest(null, List.of("public final class Book"))))
+                .isInstanceOfSatisfying(LlmProviderException.class, failure -> {
+                    assertThat(failure.errorCode()).isEqualTo(LlmErrorCode.RATE_LIMITED);
+                    assertThat(failure.instructedWait()).isEqualTo(Duration.ofSeconds(30));
+                    assertThat(failure.getMessage()).contains("429", "30s");
+                });
+
+        // "Provider is broken" and "quota is spent" call for different reactions, so they are not the same outcome
+        // in the usage table either: the error code tells them apart.
+        assertThat(recorder.rows()).singleElement().satisfies(row -> {
+            assertThat(row.errorCode()).isEqualTo(LlmErrorCode.RATE_LIMITED);
+            assertThat(row.outcome()).isEqualTo(LlmUsageOutcome.PROVIDER_ERROR);
+        });
+    }
+
+    @Test
+    void reportsARateLimitThatOutlastsTheBudgetAsARateLimitAndSendsNothingMore() {
+        // The wait fits the budget, but the first attempt has already spent most of it. The caller has to read the
+        // rate limit and the wait it cannot honour, not a bare timeout, and the retry that could not be afforded
+        // must not be sent at all.
+        gateway = gateway(AiTestSupport.properties(true, Duration.ofSeconds(1), 3));
+        server.stubFor(post(urlEqualTo(GENERATE_PATH)).willReturn(aResponse().withStatus(429)
+                .withHeader("Retry-After", "1")
+                .withFixedDelay(200)));
+
+        assertThatThrownBy(() -> gateway.chat(ChatRequest.of(null, List.of(ChatMessage.user("explain")), "chat.v1")))
+                .isInstanceOfSatisfying(LlmProviderException.class, failure -> {
+                    assertThat(failure.errorCode()).isEqualTo(LlmErrorCode.RATE_LIMITED);
+                    assertThat(failure.getMessage()).contains("1s", "budget");
+                });
+
+        assertThat(server.getAllServeEvents()).hasSize(1);
+        assertThat(recorder.rows()).singleElement().satisfies(row -> {
+            assertThat(row.errorCode()).isEqualTo(LlmErrorCode.RATE_LIMITED);
+            assertThat(row.outcome()).isEqualTo(LlmUsageOutcome.PROVIDER_ERROR);
+        });
+    }
+
+    @Test
     void redactsAConfiguredKeyBeforeThePromptLeavesTheProcess() {
         server.stubFor(post(urlEqualTo(GENERATE_PATH)).willReturn(geminiAnswer("ok")));
 
@@ -276,6 +347,27 @@ class LlmGatewayTest {
                 .inScenario(scenario)
                 .whenScenarioStateIs("second-attempt")
                 .willReturn(geminiAnswer(second)));
+    }
+
+    /**
+     * Answers the first embedding call with HTTP 429 (with the given {@code Retry-After}, if any), then with the
+     * given success body: the rate-limit retry path.
+     */
+    private static void firstEmbedIsRateLimitedThen(String retryAfter, ResponseDefinitionBuilder success,
+            String scenario) {
+        ResponseDefinitionBuilder limited = aResponse().withStatus(429);
+        if (retryAfter != null) {
+            limited = limited.withHeader("Retry-After", retryAfter);
+        }
+        server.stubFor(post(urlEqualTo(EMBED_PATH))
+                .inScenario(scenario)
+                .whenScenarioStateIs(Scenario.STARTED)
+                .willReturn(limited)
+                .willSetStateTo("second-attempt"));
+        server.stubFor(post(urlEqualTo(EMBED_PATH))
+                .inScenario(scenario)
+                .whenScenarioStateIs("second-attempt")
+                .willReturn(success));
     }
 
     /** Fails the first call with HTTP 500, then answers with the given text: the provider-retry path. */

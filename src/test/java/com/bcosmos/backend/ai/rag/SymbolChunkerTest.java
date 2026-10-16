@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.bcosmos.backend.config.RetrievalProperties;
 import com.bcosmos.core.model.Span;
 import com.bcosmos.core.model.SymbolKind;
+import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -27,7 +28,8 @@ class SymbolChunkerTest {
             }
             """;
 
-    private final SymbolChunker chunker = new SymbolChunker(new RetrievalProperties(1536, 8, 6000, 200, 16));
+    private final SymbolChunker chunker = new SymbolChunker(
+            new RetrievalProperties(1536, 8, 6000, 200, 16, Duration.ofMinutes(2)));
 
     @Test
     void buildsOneChunkPerTypeAndMethodWithAHeaderAndTheExactLines() {
@@ -68,7 +70,8 @@ class SymbolChunkerTest {
 
     @Test
     void truncatesAHugeDeclarationAndSaysSo() {
-        SymbolChunker tiny = new SymbolChunker(new RetrievalProperties(1536, 8, 6000, 60, 16));
+        SymbolChunker tiny = new SymbolChunker(
+                new RetrievalProperties(1536, 8, 6000, 60, 16, Duration.ofMinutes(2)));
 
         List<CodeChunkDraft> chunks = tiny.chunks(List.of(
                 source(1, SymbolKind.CLASS, "com.example.Reader", 3, 10)));

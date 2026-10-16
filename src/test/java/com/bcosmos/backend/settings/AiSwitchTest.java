@@ -80,7 +80,7 @@ class AiSwitchTest {
 
     private static AiProperties properties(boolean enabled) {
         return new AiProperties(enabled, Duration.ofSeconds(30), Duration.ofSeconds(5), 3, Duration.ofMillis(500), 2.0,
-                2048, "");
+                2048, "", "", false);
     }
 
     /** An in-memory settings table, so the switch is tested without a database. */

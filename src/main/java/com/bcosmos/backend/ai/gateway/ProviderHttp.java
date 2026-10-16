@@ -9,6 +9,7 @@ import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * The parts both adapters share: how to build a client with the configured timeouts, how to read a JSON answer
@@ -39,8 +40,14 @@ final class ProviderHttp {
         return RestClient.builder().requestFactory(requestFactory).build();
     }
 
-    /** Maps a transport or HTTP failure to the gateway's error vocabulary. */
-    static LlmException map(String provider, RuntimeException failure) {
+    /**
+     * Maps a transport or HTTP failure to the gateway's error vocabulary.
+     *
+     * <p>The mapper is here for one thing only: a 429 can say when to come back, and Google says it in the error
+     * body ({@code RetryInfo.retryDelay}) rather than in a header. {@link RetryWait} reads that one duration and
+     * discards the rest of the body, so nothing of it can reach a message or a log line.</p>
+     */
+    static LlmException map(String provider, RuntimeException failure, ObjectMapper json) {
         if (failure instanceof LlmException llmFailure) {
             return llmFailure;
         }
@@ -50,7 +57,13 @@ final class ProviderHttp {
                 return new LlmProviderException(LlmErrorCode.UNAUTHORIZED,
                         provider + " rejected the credentials (HTTP " + status + ")", false, failure);
             }
-            if (status == 408 || status == 429 || status >= 500) {
+            if (status == 429) {
+                // A rate limit is the provider telling us when it will serve us again, not a broken provider.
+                return LlmProviderException.rateLimited(provider,
+                        RetryWait.instructed(response.getResponseHeaders(), response.getResponseBodyAsString(), json),
+                        failure);
+            }
+            if (status == 408 || status >= 500) {
                 return new LlmProviderException(LlmErrorCode.PROVIDER_ERROR,
                         provider + " answered HTTP " + status + "; the call may be retried", true, failure);
             }

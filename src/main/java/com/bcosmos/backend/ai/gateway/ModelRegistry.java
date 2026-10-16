@@ -24,6 +24,10 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Since Phase 11 a row can also be added and removed at runtime: the provider — endpoint, protocol, credential —
  * is a row, so supporting a new vendor, or a new model of a known vendor, does not need a deployment (ADR
  * 0038).</p>
+ *
+ * <p>Which model a call uses is always named by the caller. There is no stored default: a flag that a browser has
+ * to interpret (two rows marked "default", one of them for embeddings) made a choice look implicit, and a call that
+ * names nothing now fails with the list of models that could have been named (ADR 0042).</p>
  */
 public class ModelRegistry {
 
@@ -63,15 +67,16 @@ public class ModelRegistry {
     }
 
     /**
-     * The chat model a call should use: the named one, or the registry's default chat model.
+     * The chat model a call should use.
      *
-     * @param modelId registry id, or {@code null} to take the default
-     * @throws ModelDisabledException   when the row exists but is not enabled
-     * @throws ModelCapabilityException when the named row is an embedding model
+     * @param modelId registry id the caller named
+     * @throws ModelNotConfiguredException when the call named no model; the message lists the ones to choose from
+     * @throws ModelDisabledException      when the row exists but is not enabled
+     * @throws ModelCapabilityException    when the named row is an embedding model
      */
     @Transactional(readOnly = true)
     public ModelRef requireUsable(Long modelId) {
-        LlmModelRecord model = modelId == null ? defaultChatEntity() : entity(modelId);
+        LlmModelRecord model = modelId == null ? undefined(LlmModelCapability.CHAT) : entity(modelId);
         requireChatCapability(model);
         if (!model.enabled()) {
             throw new ModelDisabledException(model.provider().code() + "/" + model.modelName());
@@ -80,15 +85,14 @@ public class ModelRegistry {
     }
 
     /**
-     * The embedding model an index build should use: the named one, or the registry's default embedding model.
+     * The embedding model an index build should use.
      *
-     * <p>When no embedding row is marked as default, the first enabled one is used, so a fresh database works as
-     * soon as a single embedding model is switched on. Nothing enabled at all is an error the caller can act on,
-     * not an empty index.</p>
+     * @param modelId registry id the caller named
+     * @throws ModelNotConfiguredException when the call named no model; the message lists the ones to choose from
      */
     @Transactional(readOnly = true)
     public ModelRef requireEmbeddingModel(Long modelId) {
-        LlmModelRecord model = modelId == null ? defaultEmbeddingEntity() : entity(modelId);
+        LlmModelRecord model = modelId == null ? undefined(LlmModelCapability.EMBEDDING) : entity(modelId);
         if (!model.embeddingCapable()) {
             throw new ModelCapabilityException(model.provider().code() + "/" + model.modelName() + " is a "
                     + model.capability() + " model; embeddings need an EMBEDDING model");
@@ -97,12 +101,6 @@ public class ModelRegistry {
             throw new ModelDisabledException(model.provider().code() + "/" + model.modelName());
         }
         return toRef(model);
-    }
-
-    /** The chat row the API uses when a request does not name a model. */
-    @Transactional(readOnly = true)
-    public ModelRef defaultModel() {
-        return toRef(defaultChatEntity());
     }
 
     /** Whether the provider of this model has a credential right now. */
@@ -115,23 +113,12 @@ public class ModelRegistry {
         return model.provider();
     }
 
-    /**
-     * Applies an edit from the settings screen.
-     *
-     * <p>Making a model the default clears the previous one in the same transaction: "at most one default" is an
-     * invariant of this class, not a convention callers have to remember.</p>
-     */
+    /** Applies an edit from the settings screen. */
     @Transactional
     public ModelListing edit(long modelId, ModelEdit edit) {
         LlmModelRecord model = entity(modelId);
-        boolean becomesDefault = Boolean.TRUE.equals(edit.defaultModel());
         if (Boolean.TRUE.equals(edit.enabled()) && !credentials.isConfigured(toRef(model).provider())) {
             throw new MissingApiKeyException(model.provider().code(), model.provider().apiKeyEnv());
-        }
-        if (Boolean.FALSE.equals(edit.defaultModel()) && model.defaultModel()) {
-            throw new InvalidModelUpdateException("model '" + model.modelName()
-                    + "' is the default " + model.capability().name().toLowerCase(java.util.Locale.ROOT)
-                    + " model; make another model the default first");
         }
         if (edit.contextWindow() != null && edit.contextWindow() <= 0) {
             throw new InvalidModelUpdateException("contextWindow must be positive");
@@ -139,14 +126,7 @@ public class ModelRegistry {
         if (isNegative(edit.costPer1kIn()) || isNegative(edit.costPer1kOut())) {
             throw new InvalidModelUpdateException("prices cannot be negative");
         }
-        if (becomesDefault) {
-            // Defaults are per capability: promoting an embedding model must not clear the chat default.
-            store.findDefault(model.capability())
-                    .filter(previous -> !previous.id().equals(modelId))
-                    .ifPresent(previous -> store.save(previous.withEdit(null, false, null, null, null, null,
-                            clock.instant())));
-        }
-        return toListing(store.save(model.withEdit(edit.enabled(), edit.defaultModel(), edit.contextWindow(),
+        return toListing(store.save(model.withEdit(edit.enabled(), edit.contextWindow(),
                 edit.costPer1kIn(), edit.costPer1kOut(), edit.notes(), clock.instant())));
     }
 
@@ -184,51 +164,46 @@ public class ModelRegistry {
         if (draft.notes() != null && draft.notes().length() > MAX_NOTES) {
             throw new InvalidModelUpdateException("notes are longer than " + MAX_NOTES + " characters");
         }
-        boolean becomesDefault = Boolean.TRUE.equals(draft.defaultModel());
-        if (becomesDefault) {
-            store.findDefault(capability)
-                    .ifPresent(previous -> store.save(previous.withEdit(null, false, null, null, null, null,
-                            clock.instant())));
-        }
         Instant now = clock.instant();
         LlmModelRecord row = new LlmModelRecord(null, provider, modelName, kind, capability, dimension, enabled,
-                becomesDefault, contextWindow, costIn, costOut, draft.notes(), now, now);
+                contextWindow, costIn, costOut, draft.notes(), now, now);
         return toListing(store.save(row));
     }
 
     /**
      * Removes a registry row.
      *
-     * <p>The default row cannot go first, because the API needs a default chat model to answer a request that names
-     * none. History is safe either way: usage rows and suggestions keep their own copy of the model name and their
-     * foreign keys are {@code ON DELETE SET NULL}.</p>
+     * <p>Nothing has to be demoted first: no call can be pointing at this row implicitly, because every call names
+     * its model. History is safe either way — usage rows and suggestions keep their own copy of the model name and
+     * their foreign keys are {@code ON DELETE SET NULL}.</p>
      */
     @Transactional
     public void delete(long modelId) {
-        LlmModelRecord model = entity(modelId);
-        if (model.defaultModel()) {
-            throw new InvalidModelUpdateException("model '" + model.modelName() + "' is the default "
-                    + model.capability().name().toLowerCase(java.util.Locale.ROOT)
-                    + " model; make another model the default before deleting it");
-        }
-        store.delete(modelId);
+        store.delete(entity(modelId).id());
     }
 
     private LlmModelRecord entity(long modelId) {
         return store.findById(modelId).orElseThrow(() -> new ModelNotFoundException(modelId));
     }
 
-    private LlmModelRecord defaultChatEntity() {
-        return store.findDefault(LlmModelCapability.CHAT).orElseThrow(() -> new ModelNotConfiguredException(
-                "no chat model is marked as the default; choose one in settings"));
-    }
-
-    private LlmModelRecord defaultEmbeddingEntity() {
-        List<LlmModelRecord> embeddingModels = store.findByCapability(LlmModelCapability.EMBEDDING);
-        return embeddingModels.stream().filter(LlmModelRecord::defaultModel).findFirst()
-                .or(() -> embeddingModels.stream().filter(LlmModelRecord::enabled).findFirst())
-                .orElseThrow(() -> new ModelNotConfiguredException(
-                        "no embedding model is enabled; enable one in settings before indexing code"));
+    /**
+     * Never returns: the failure for a call that named no model, saying what it should have named.
+     *
+     * <p>It lists the enabled rows of the capability, because "name a chat model" is only actionable if the caller
+     * can see which ones exist, and it names the settings screen when there are none at all.</p>
+     */
+    private LlmModelRecord undefined(LlmModelCapability capability) {
+        String required = capability == LlmModelCapability.EMBEDDING ? "embedding" : "chat";
+        List<String> callable = store.findByCapability(capability).stream()
+                .filter(LlmModelRecord::enabled)
+                .map(model -> model.provider().code() + "/" + model.modelName() + " (id " + model.id() + ")")
+                .toList();
+        if (callable.isEmpty()) {
+            throw new ModelNotConfiguredException("this call has to name a " + required + " model, and no "
+                    + required + " model is enabled; enable one in settings first");
+        }
+        throw new ModelNotConfiguredException("this call has to name the model it wants: there is no default any"
+                + " more, so name a " + required + " model — " + String.join(", ", callable));
     }
 
     /** Chat and structured calls must not be pointed at an embedding model. */
@@ -281,7 +256,6 @@ public class ModelRegistry {
                 model.capability(),
                 model.embeddingDimension(),
                 model.enabled(),
-                model.defaultModel(),
                 model.contextWindow(),
                 model.costPer1kIn(),
                 model.costPer1kOut(),

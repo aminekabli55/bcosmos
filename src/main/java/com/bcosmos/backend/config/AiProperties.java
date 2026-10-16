@@ -1,5 +1,6 @@
 package com.bcosmos.backend.config;
 
+import java.nio.file.Path;
 import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -16,6 +17,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * is legitimate — it means a provider takes its key from the environment variable its row names, and pasting a new
  * key in the settings screen is refused with a message saying so.</p>
  *
+ * <p>{@code secret-key-file} and {@code generate-secret-key} are the development convenience of ADR 0039: a key
+ * file outside the repository that is generated on first start in the {@code dev} profile, so pasting a key in
+ * Settings needs no shell step. Outside that profile nothing is generated and the environment stays the only
+ * source.</p>
+ *
  * @param enabled           global switch; {@code false} means nothing is sent to any provider
  * @param timeout           total budget of one call, including retries and backoff
  * @param connectTimeout    how long to wait for a connection to the provider
@@ -23,7 +29,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @param initialBackoff    wait before the second attempt
  * @param backoffMultiplier factor the wait grows by after every failed attempt
  * @param maxOutputTokens   output cap used when a request does not set one
- * @param secretKey         base64 of 32 random bytes, the key that protects stored credentials
+ * @param secretKey         base64 of 32 random bytes, the key that protects stored credentials; wins over the file
+ * @param secretKeyFile     where a locally kept master key lives; empty means no file at all
+ * @param generateSecretKey whether a missing key file may be filled with a freshly generated key (dev only)
  */
 @ConfigurationProperties(prefix = "bcosmos.ai")
 public record AiProperties(
@@ -34,7 +42,9 @@ public record AiProperties(
         Duration initialBackoff,
         double backoffMultiplier,
         int maxOutputTokens,
-        String secretKey) {
+        String secretKey,
+        String secretKeyFile,
+        boolean generateSecretKey) {
 
     private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(30);
     private static final Duration DEFAULT_CONNECT_TIMEOUT = Duration.ofSeconds(5);
@@ -51,11 +61,22 @@ public record AiProperties(
         backoffMultiplier = backoffMultiplier < 1.0 ? DEFAULT_BACKOFF_MULTIPLIER : backoffMultiplier;
         maxOutputTokens = maxOutputTokens <= 0 ? DEFAULT_MAX_OUTPUT_TOKENS : maxOutputTokens;
         secretKey = secretKey == null ? "" : secretKey.trim();
+        secretKeyFile = secretKeyFile == null ? "" : secretKeyFile.trim();
     }
 
-    /** Whether a master key is configured, so a credential can be stored encrypted. */
+    /** Whether a master key is configured in the environment, so a credential can be stored encrypted. */
     public boolean hasSecretKey() {
         return !secretKey.isBlank();
+    }
+
+    /**
+     * The configured key file as a path, or {@code null} when no file is configured.
+     *
+     * <p>Resolved here rather than by binding a {@code Path} from the property, so an unset property is 'no file'
+     * instead of a path to the working directory.</p>
+     */
+    public Path secretKeyPath() {
+        return secretKeyFile.isBlank() ? null : Path.of(secretKeyFile);
     }
 
     private static Duration positiveOr(Duration value, Duration fallback) {

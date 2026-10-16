@@ -69,24 +69,22 @@ final class AiTestSupport {
         return SecretCipher.fromBase64(MASTER_KEY);
     }
 
-    static LlmModelRecord model(long id, LlmProviderRecord provider, String modelName, boolean enabled,
-            boolean isDefault) {
+    static LlmModelRecord model(long id, LlmProviderRecord provider, String modelName, boolean enabled) {
         return new LlmModelRecord(id, provider, modelName, LlmModelKind.HOSTED, LlmModelCapability.CHAT, null, enabled,
-                isDefault, 128_000, COST_IN, COST_OUT, "test row", CREATED, CREATED);
+                128_000, COST_IN, COST_OUT, "test row", CREATED, CREATED);
     }
 
     /** A row that has not been inserted yet: the store assigns the id, as a real insert would. */
-    static LlmModelRecord newModel(LlmProviderRecord provider, String modelName, boolean enabled, boolean isDefault) {
+    static LlmModelRecord newModel(LlmProviderRecord provider, String modelName, boolean enabled) {
         return new LlmModelRecord(null, provider, modelName, LlmModelKind.HOSTED, LlmModelCapability.CHAT, null,
-                enabled, isDefault, 128_000, COST_IN, COST_OUT, "test row", CREATED, CREATED);
+                enabled, 128_000, COST_IN, COST_OUT, "test row", CREATED, CREATED);
     }
 
     /** An embedding registry row: same shape plus the capability and the vector width it asks for. */
     static LlmModelRecord embeddingModel(long id, LlmProviderRecord provider, String modelName, boolean enabled,
-            boolean isDefault, int dimension) {
+            int dimension) {
         return new LlmModelRecord(id, provider, modelName, LlmModelKind.HOSTED, LlmModelCapability.EMBEDDING,
-                dimension, enabled, isDefault, 8_192, COST_IN, BigDecimal.ZERO, "test embedding row", CREATED,
-                CREATED);
+                dimension, enabled, 8_192, COST_IN, BigDecimal.ZERO, "test embedding row", CREATED, CREATED);
     }
 
     /** The environment a test provider reads when it has no stored key. */
@@ -106,10 +104,15 @@ final class AiTestSupport {
         return properties(enabled, Duration.ofSeconds(5), 2);
     }
 
-    /** Section defaults with only what a test varies: the switch, the budget and the attempt count. */
+    /**
+     * Section defaults with only what a test varies: the switch, the budget and the attempt count.
+     *
+     * <p>The master key is the fixed test key and no key file is configured, so a test never reads or writes one in
+     * the developer's home directory.</p>
+     */
     static AiProperties properties(boolean enabled, Duration timeout, int maxAttempts) {
         return new AiProperties(enabled, timeout, Duration.ofSeconds(2), maxAttempts, Duration.ofMillis(10), 2.0, 512,
-                MASTER_KEY);
+                MASTER_KEY, "", false);
     }
 
     static final class FakeProviderStore implements LlmProviderStore {
@@ -180,13 +183,6 @@ final class AiTestSupport {
         }
 
         @Override
-        public Optional<LlmModelRecord> findDefault(LlmModelCapability capability) {
-            return rows.values().stream()
-                    .filter(model -> model.capability() == capability && model.defaultModel())
-                    .findFirst();
-        }
-
-        @Override
         public List<LlmModelRecord> findByCapability(LlmModelCapability capability) {
             return rows.values().stream().filter(model -> model.capability() == capability).toList();
         }
@@ -215,16 +211,9 @@ final class AiTestSupport {
             rows.remove(id);
         }
 
-        /** Rows marked as default for one capability, so a test can assert the registry keeps at most one. */
-        List<LlmModelRecord> defaults(LlmModelCapability capability) {
-            return rows.values().stream()
-                    .filter(model -> model.capability() == capability && model.defaultModel())
-                    .toList();
-        }
-
         private static LlmModelRecord withId(LlmModelRecord model, long id) {
             return new LlmModelRecord(id, model.provider(), model.modelName(), model.kind(), model.capability(),
-                    model.embeddingDimension(), model.enabled(), model.defaultModel(), model.contextWindow(),
+                    model.embeddingDimension(), model.enabled(), model.contextWindow(),
                     model.costPer1kIn(), model.costPer1kOut(), model.notes(), model.createdAt(), model.updatedAt());
         }
     }

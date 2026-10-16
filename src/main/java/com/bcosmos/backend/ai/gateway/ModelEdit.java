@@ -9,7 +9,6 @@ import java.math.BigDecimal;
  * row and racing another editor.</p>
  *
  * @param enabled       per-model opt-in for sending code to the provider
- * @param defaultModel  whether this model becomes the default (at most one row is the default)
  * @param contextWindow tokens the provider accepts in one request
  * @param costPer1kIn   price estimate per 1000 input tokens
  * @param costPer1kOut  price estimate per 1000 output tokens
@@ -17,7 +16,6 @@ import java.math.BigDecimal;
  */
 public record ModelEdit(
         Boolean enabled,
-        Boolean defaultModel,
         Integer contextWindow,
         BigDecimal costPer1kIn,
         BigDecimal costPer1kOut,
@@ -25,7 +23,7 @@ public record ModelEdit(
 
     /** Whether this edit asks for nothing at all. */
     public boolean isEmpty() {
-        return enabled == null && defaultModel == null && contextWindow == null && costPer1kIn == null
+        return enabled == null && contextWindow == null && costPer1kIn == null
                 && costPer1kOut == null && notes == null;
     }
 }

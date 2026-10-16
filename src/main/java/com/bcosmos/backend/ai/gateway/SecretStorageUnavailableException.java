@@ -12,11 +12,18 @@ public class SecretStorageUnavailableException extends LlmException {
         super("secret-storage-unavailable", message, false);
     }
 
-    /** The common case: no master key in the environment. */
+    /**
+     * The common case: neither the environment nor a key file has one.
+     *
+     * <p>The message names both ways out, because the reader may be the developer whose {@code dev} profile has key
+     * generation switched off, or an operator whose deployment must set the variable.</p>
+     */
     public static SecretStorageUnavailableException notConfigured() {
         return new SecretStorageUnavailableException(
                 "no master key is configured, so an API key cannot be stored: set BCOSMOS_AI_SECRET_KEY to the "
-                        + "base64 of 32 random bytes (openssl rand -base64 32) and restart. Until then a provider "
-                        + "reads its key from the environment variable its row names.");
+                        + "base64 of 32 random bytes (openssl rand -base64 32) and restart, or point "
+                        + "bcosmos.ai.secret-key-file at a file to keep one in and turn on "
+                        + "bcosmos.ai.generate-secret-key. Until then a provider reads its key from the environment "
+                        + "variable its row names.");
     }
 }

@@ -29,14 +29,13 @@ public record CreateModelRequest(
         LlmModelCapability capability,
         @Positive Integer embeddingDimension,
         Boolean enabled,
-        Boolean defaultModel,
         @Positive Integer contextWindow,
         @PositiveOrZero BigDecimal costPer1kIn,
         @PositiveOrZero BigDecimal costPer1kOut,
         @Size(max = 500) String notes) {
 
     public ModelDraft toDraft() {
-        return new ModelDraft(providerId, modelName, kind, capability, embeddingDimension, enabled, defaultModel,
+        return new ModelDraft(providerId, modelName, kind, capability, embeddingDimension, enabled,
                 contextWindow, costPer1kIn, costPer1kOut, notes);
     }
 }

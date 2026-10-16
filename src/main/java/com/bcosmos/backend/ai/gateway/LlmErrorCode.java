@@ -21,6 +21,15 @@ public final class LlmErrorCode {
     /** The provider failed, or kept failing after the retries. */
     public static final String PROVIDER_ERROR = "provider-error";
 
+    /**
+     * The provider refused the call for now: a rate or quota limit (HTTP 429).
+     *
+     * <p>Its own code rather than {@link #PROVIDER_ERROR}, because it is the one failure that says when to come
+     * back, and the difference between "the provider is broken" and "the quota is spent" decides whether re-running
+     * is worth anything (ADR 0040).</p>
+     */
+    public static final String RATE_LIMITED = "rate-limited";
+
     /** The call did not finish inside the configured budget. */
     public static final String TIMEOUT = "timeout";
 

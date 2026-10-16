@@ -58,7 +58,7 @@ public class GeminiAdapter implements LlmProviderAdapter {
                     .body(String.class);
             return readCompletion(provider, response);
         } catch (RuntimeException failure) {
-            throw ProviderHttp.map(provider, failure);
+            throw ProviderHttp.map(provider, failure, json);
         }
     }
 
@@ -92,7 +92,7 @@ public class GeminiAdapter implements LlmProviderAdapter {
                     .body(String.class);
             return readEmbeddings(provider, response, texts.size());
         } catch (RuntimeException failure) {
-            throw ProviderHttp.map(provider, failure);
+            throw ProviderHttp.map(provider, failure, json);
         }
     }
 

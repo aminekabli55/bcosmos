@@ -103,3 +103,8 @@ databaseChangeLog:
       file: changes/0026-fix-seeded-model-notes.yaml
       relativeToChangelogFile: true
 
+  # Model selection: a call names the model it wants, so the stored default has no reader left (ADR 0042).
+  - include:
+      file: changes/0027-drop-model-default.yaml
+      relativeToChangelogFile: true
+

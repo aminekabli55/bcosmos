@@ -138,6 +138,46 @@ class GeminiAdapterTest {
     }
 
     @Test
+    void readsTheWaitOutOfTheErrorBodyOfA429() {
+        // Gemini reports the retry delay in the error details, not in a Retry-After header. It is the only place
+        // that says how long a spent quota takes to come back, so it is read here and nowhere else (ADR 0040).
+        server.stubFor(post(urlEqualTo(EMBED_PATH)).willReturn(aResponse().withStatus(429)
+                .withHeader("Content-Type", "application/json")
+                .withBody("""
+                        {
+                          "error": {
+                            "code": 429,
+                            "message": "You exceeded your current quota",
+                            "status": "RESOURCE_EXHAUSTED",
+                            "details": [
+                              {"@type": "type.googleapis.com/google.rpc.RetryInfo", "retryDelay": "31s"}
+                            ]
+                          }
+                        }
+                        """)));
+
+        assertThatThrownBy(() -> adapter.embed(embeddingModel(), List.of("public final class Book")))
+                .isInstanceOfSatisfying(LlmProviderException.class, failure -> {
+                    assertThat(failure.errorCode()).isEqualTo(LlmErrorCode.RATE_LIMITED);
+                    assertThat(failure.retryable()).isTrue();
+                    assertThat(failure.instructedWait()).isEqualTo(Duration.ofSeconds(31));
+                    assertThat(failure.getMessage()).contains("429", "31s");
+                });
+    }
+
+    @Test
+    void keepsNoTraceOfTheErrorBodyInTheFailureItReports() {
+        // An error body can echo the request, and the request carries source code (spec v2 section 10).
+        server.stubFor(post(urlEqualTo(EMBED_PATH)).willReturn(aResponse().withStatus(429)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"error\": {\"message\": \"public final class Secret\", \"code\": 429}}")));
+
+        assertThatThrownBy(() -> adapter.embed(embeddingModel(), List.of("public final class Book")))
+                .isInstanceOfSatisfying(LlmProviderException.class,
+                        failure -> assertThat(failure.getMessage()).doesNotContain("Secret"));
+    }
+
+    @Test
     void embedsEveryTextAndReportsThatGeminiSendsNoTokenCount() {
         server.stubFor(post(urlEqualTo(EMBED_PATH)).willReturn(json("""
                 {"embeddings": [{"values": [0.1, 0.2]}, {"values": [0.3, 0.4]}]}

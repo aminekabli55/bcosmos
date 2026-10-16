@@ -14,7 +14,6 @@ import java.math.BigDecimal;
  * @param capability         {@code null} means CHAT
  * @param embeddingDimension required for an EMBEDDING model, ignored for a chat model
  * @param enabled            whether the opt-in is granted at creation; a pasted-but-unused model starts off
- * @param defaultModel       whether this becomes the default for its capability
  * @param contextWindow      {@code null} means the default, so a user does not have to know it to add a model
  */
 public record ModelDraft(
@@ -24,7 +23,6 @@ public record ModelDraft(
         LlmModelCapability capability,
         Integer embeddingDimension,
         Boolean enabled,
-        Boolean defaultModel,
         Integer contextWindow,
         BigDecimal costPer1kIn,
         BigDecimal costPer1kOut,
