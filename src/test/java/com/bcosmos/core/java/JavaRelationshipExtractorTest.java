@@ -73,6 +73,35 @@ class JavaRelationshipExtractorTest {
     }
 
     @Test
+    void fluentChainIsRecordedByMethodNameNotByWholeExpression() {
+        String longArgument = "x".repeat(600);
+        String code = """
+                package com.acme.security;
+
+                public class SecurityConfig {
+                    private Repository repository;
+
+                    public void configure(HttpSecurity http) {
+                        http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                            .csrf(AbstractHttpConfigurer::disable)
+                            .authorizeHttpRequests(requests -> requests.requestMatchers("/a", "%s").permitAll());
+                        this.repository.save();
+                    }
+                }
+                """.formatted(longArgument);
+
+        JavaParsedFile parsed = adapter.parse(Path.of("SecurityConfig.java"), code);
+        List<Relationship> calls = adapter.extractRelationships(parsed).stream()
+                .filter(r -> r.type() == RelationshipType.CALLS)
+                .toList();
+
+        assertThat(calls).isNotEmpty();
+        assertThat(calls).allSatisfy(r -> assertThat(r.targetReferenceName()).hasSizeLessThan(120));
+        assertThat(calls).extracting(Relationship::targetReferenceName)
+                .contains("http.cors", "csrf", "permitAll", "this.repository.save");
+    }
+
+    @Test
     void unparseableFileYieldsZeroRelationships() {
         String broken = "class Broken { void unclosed(";
         JavaParsedFile parsed = adapter.parse(Path.of("Broken.java"), broken);

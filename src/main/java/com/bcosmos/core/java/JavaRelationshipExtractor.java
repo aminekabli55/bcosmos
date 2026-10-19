@@ -11,6 +11,8 @@ import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.TypeDeclaration;
+import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
@@ -169,8 +171,7 @@ final class JavaRelationshipExtractor {
 
         // Method calls in body
         method.findAll(MethodCallExpr.class).forEach(call -> {
-            String callName = call.getNameAsString();
-            String fullCallRef = call.getScope().map(s -> s.toString() + '.' + callName).orElse(callName);
+            String fullCallRef = callReference(call);
             int line = call.getRange().map(r -> r.begin.line).orElse(methodLine);
 
             out.add(new Relationship(
@@ -216,8 +217,7 @@ final class JavaRelationshipExtractor {
         int ctorLine = ctor.getRange().map(r -> r.begin.line).orElse(1);
 
         ctor.findAll(MethodCallExpr.class).forEach(call -> {
-            String callName = call.getNameAsString();
-            String fullCallRef = call.getScope().map(s -> s.toString() + '.' + callName).orElse(callName);
+            String fullCallRef = callReference(call);
             int line = call.getRange().map(r -> r.begin.line).orElse(ctorLine);
 
             out.add(new Relationship(
@@ -230,6 +230,40 @@ final class JavaRelationshipExtractor {
                     filePath,
                     line));
         });
+    }
+
+    /**
+     * Name of a call as written in code: the callee name, qualified by its receiver only when the receiver has a
+     * name of its own ({@code repository.save}, {@code System.out.println}).
+     *
+     * <p>A receiver that is itself an expression (a fluent chain, a lambda, a cast) has no name, so the call is
+     * recorded by method name alone. Using the printed receiver expression instead made
+     * {@code targetReferenceName} grow with the whole fluent chain - 800+ characters on a Spring Security
+     * configuration - which is neither a name nor guaranteed to fit the column.</p>
+     */
+    private static String callReference(MethodCallExpr call) {
+        String methodName = call.getNameAsString();
+        String receiver = call.getScope().map(JavaRelationshipExtractor::receiverName).orElse("");
+        return receiver.isEmpty() ? methodName : receiver + '.' + methodName;
+    }
+
+    /** Simple, bounded name of a receiver expression; empty when the expression has no name. */
+    private static String receiverName(Expression scope) {
+        if (scope.isNameExpr()) {
+            return scope.asNameExpr().getNameAsString();
+        }
+        if (scope.isThisExpr()) {
+            return "this";
+        }
+        if (scope.isSuperExpr()) {
+            return "super";
+        }
+        if (scope.isFieldAccessExpr()) {
+            FieldAccessExpr field = scope.asFieldAccessExpr();
+            String inner = receiverName(field.getScope());
+            return inner.isEmpty() ? field.getNameAsString() : inner + '.' + field.getNameAsString();
+        }
+        return "";
     }
 
     private static String resolveTypeName(String typeName, String packageName, Map<String, String> imports) {
