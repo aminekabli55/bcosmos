@@ -15,10 +15,18 @@ import java.util.Objects;
 
 /**
  * Symbol graph edge record (Phase 8, spec v2 section 4.1, table {@code relationship}).
+ *
+ * <p>The text columns are bounded here, at the last point before the database, because the values come from parsed
+ * source: one oversized value used to abort the whole file's transaction and therefore the whole run with
+ * {@code value too long for type character varying(500)} (ADR 0043). The extractor already produces short names;
+ * this is the guard that keeps any future adapter from taking a run down.</p>
  */
 @Entity
 @Table(name = "relationship")
 public class RelationshipEntity {
+
+    /** Length of {@code target_reference_name} and {@code evidence_file} (changeset 0021). */
+    static final int MAX_TEXT_LENGTH = 500;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -72,13 +80,29 @@ public class RelationshipEntity {
         this.runId = Objects.requireNonNull(runId, "runId");
         this.sourceSymbolId = Objects.requireNonNull(sourceSymbolId, "sourceSymbolId");
         this.targetSymbolId = targetSymbolId;
-        this.targetReferenceName = Objects.requireNonNull(targetReferenceName, "targetReferenceName");
+        this.targetReferenceName = boundReferenceName(
+                Objects.requireNonNull(targetReferenceName, "targetReferenceName"));
         this.type = Objects.requireNonNull(type, "type");
         this.resolutionStatus = Objects.requireNonNull(resolutionStatus, "resolutionStatus");
         this.confidence = confidence;
-        this.evidenceFile = Objects.requireNonNull(evidenceFile, "evidenceFile");
+        this.evidenceFile = boundPrefix(Objects.requireNonNull(evidenceFile, "evidenceFile"));
         this.evidenceLine = evidenceLine;
         this.createdAt = Instant.now();
+    }
+
+    /**
+     * Keeps the end of an oversized reference name: the method name is its last segment and the only part
+     * cross-file resolution uses, so the head of a fluent chain is what can be dropped.
+     */
+    static String boundReferenceName(String value) {
+        return value.length() <= MAX_TEXT_LENGTH
+                ? value
+                : value.substring(value.length() - MAX_TEXT_LENGTH);
+    }
+
+    /** Keeps the start of an oversized evidence path, which stays meaningful as a location. */
+    static String boundPrefix(String value) {
+        return value.length() <= MAX_TEXT_LENGTH ? value : value.substring(0, MAX_TEXT_LENGTH);
     }
 
     public Long getId() {
