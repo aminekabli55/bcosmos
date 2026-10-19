@@ -6,9 +6,9 @@
 
 /* ── Page shell ─────────────────────────────────────────────────────────── */
 .bench-page {
-  padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
+  padding: 0;
+  max-width: none;
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -36,7 +36,7 @@
 }
 
 .bench-title {
-  font-size: 1.5rem;
+  font-size: clamp(1.9rem, 2.7vw, 2.4rem);
   font-weight: 700;
   color: var(--text-primary);
   margin: 0;
@@ -106,7 +106,9 @@
   padding: 0.35rem 0.75rem;
   font-size: 0.82rem;
   cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
 
   &:hover:not(:disabled) {
     border-color: var(--accent);
@@ -120,7 +122,9 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .spinning {
@@ -232,26 +236,57 @@
       }
     }
 
-    &.col-rank  { width: 2.5rem; text-align: center; }
-    &.col-metric { text-align: right; }
-    &.col-latency { text-align: right; }
-    &.col-cost   { text-align: right; }
-    &.col-n      { text-align: right; }
-    &.col-expand { width: 2.5rem; }
+    &.col-rank {
+      width: 2.5rem;
+      text-align: center;
+    }
+    &.col-metric {
+      text-align: right;
+    }
+    &.col-latency {
+      text-align: right;
+    }
+    &.col-cost {
+      text-align: right;
+    }
+    &.col-n {
+      text-align: right;
+    }
+    &.col-expand {
+      width: 2.5rem;
+    }
   }
 
   td {
     padding: 0.7rem 1rem;
-    border-bottom: 1px solid hsla(var(--border-h, 240), var(--border-s, 10%), var(--border-l, 20%), 0.5);
+    border-bottom: 1px solid
+      hsla(var(--border-h, 240), var(--border-s, 10%), var(--border-l, 20%), 0.5);
     color: var(--text-primary);
     vertical-align: middle;
 
-    &.col-rank   { text-align: center; color: var(--text-muted); font-weight: 600; }
-    &.col-metric { text-align: right; }
-    &.col-latency { text-align: right; color: var(--text-secondary); }
-    &.col-cost   { text-align: right; color: var(--text-secondary); }
-    &.col-n      { text-align: right; color: var(--text-secondary); }
-    &.col-expand { text-align: center; }
+    &.col-rank {
+      text-align: center;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    &.col-metric {
+      text-align: right;
+    }
+    &.col-latency {
+      text-align: right;
+      color: var(--text-secondary);
+    }
+    &.col-cost {
+      text-align: right;
+      color: var(--text-secondary);
+    }
+    &.col-n {
+      text-align: right;
+      color: var(--text-secondary);
+    }
+    &.col-expand {
+      text-align: center;
+    }
   }
 
   tbody tr:last-child td {
@@ -319,9 +354,15 @@
   font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
 
-  &.rate--good   { color: hsl(142, 70%, 52%); }
-  &.rate--medium { color: hsl(38, 95%, 56%); }
-  &.rate--poor   { color: hsl(0, 70%, 60%); }
+  &.rate--good {
+    color: hsl(142, 70%, 52%);
+  }
+  &.rate--medium {
+    color: hsl(38, 95%, 56%);
+  }
+  &.rate--poor {
+    color: hsl(0, 70%, 60%);
+  }
 }
 
 .rate-bar-track {
@@ -350,7 +391,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: border-color 0.15s, color 0.15s;
+  transition:
+    border-color 0.15s,
+    color 0.15s;
 
   &:hover {
     border-color: var(--accent);
@@ -374,8 +417,14 @@
 }
 
 @keyframes expand-in {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .bench-detail__section {

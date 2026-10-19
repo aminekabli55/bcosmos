@@ -69,7 +69,9 @@ describe('Repositories', () => {
   }
 
   function button(root: HTMLElement, text: string): HTMLButtonElement {
-    const match = [...root.querySelectorAll('button')].find((candidate) => candidate.textContent?.trim() === text);
+    const match = [...root.querySelectorAll('button')].find(
+      (candidate) => candidate.textContent?.trim() === text,
+    );
     if (!match) {
       throw new Error(`no button labelled "${text}"`);
     }
@@ -96,12 +98,23 @@ describe('Repositories', () => {
     expect(rows[0].textContent).toContain('REGISTERED');
   });
 
+  it('shows the cosmic hero with the number of repositories loaded', async () => {
+    const root = create();
+    flushRepositories([repository, { ...repository, id: 2, name: 'angular-fixture' }]);
+    await fixture.whenStable();
+
+    expect(root.querySelector('.hero')?.textContent).toContain('Chart the code cosmos');
+    expect(root.querySelector('.hero__stat-value')?.textContent).toContain('2');
+  });
+
   it('shows the message the backend sent when listing fails', async () => {
     const root = create();
-    http.expectOne((request) => request.url === '/api/repositories').flush(
-      { title: 'Unexpected error', detail: 'nothing to see', correlationId: 'c-1' },
-      { status: 500, statusText: 'Server Error' },
-    );
+    http
+      .expectOne((request) => request.url === '/api/repositories')
+      .flush(
+        { title: 'Unexpected error', detail: 'nothing to see', correlationId: 'c-1' },
+        { status: 500, statusText: 'Server Error' },
+      );
     await fixture.whenStable();
 
     expect(root.textContent).toContain('Unexpected error');
@@ -139,10 +152,12 @@ describe('Repositories', () => {
     path.dispatchEvent(new Event('input'));
     root.querySelector('form')!.dispatchEvent(new Event('submit'));
 
-    http.expectOne('/api/repositories').flush(
-      { title: 'Invalid repository path', detail: 'the path is outside the allowed roots' },
-      { status: 400, statusText: 'Bad Request' },
-    );
+    http
+      .expectOne('/api/repositories')
+      .flush(
+        { title: 'Invalid repository path', detail: 'the path is outside the allowed roots' },
+        { status: 400, statusText: 'Bad Request' },
+      );
     await fixture.whenStable();
 
     expect(root.textContent).toContain('Invalid repository path');
@@ -195,13 +210,15 @@ describe('Repositories', () => {
     button(root, 'Delete').click();
     fixture.detectChanges();
     button(root, 'Yes, remove it').click();
-    http.expectOne((candidate) => candidate.url === '/api/repositories/1').flush(
-      {
-        title: 'Repository is busy',
-        detail: 'this repository has an analysis that has not finished yet',
-      },
-      { status: 409, statusText: 'Conflict' },
-    );
+    http
+      .expectOne((candidate) => candidate.url === '/api/repositories/1')
+      .flush(
+        {
+          title: 'Repository is busy',
+          detail: 'this repository has an analysis that has not finished yet',
+        },
+        { status: 409, statusText: 'Conflict' },
+      );
     await fixture.whenStable();
 
     expect(root.textContent).toContain('Repository is busy');
@@ -223,7 +240,9 @@ describe('Repositories', () => {
       started.flush(analysisRun());
       fixture.detectChanges();
 
-      http.expectOne((request) => request.url === '/api/repositories/1/analyses').flush(page([analysisRun()]));
+      http
+        .expectOne((request) => request.url === '/api/repositories/1/analyses')
+        .flush(page([analysisRun()]));
       fixture.detectChanges();
 
       vi.advanceTimersByTime(1000);
@@ -234,7 +253,9 @@ describe('Repositories', () => {
       expect(root.textContent).toContain('SUCCEEDED');
 
       vi.advanceTimersByTime(5000);
-      expect(http.match((request) => request.url === '/api/repositories/1/analyses').length).toBe(0);
+      expect(http.match((request) => request.url === '/api/repositories/1/analyses').length).toBe(
+        0,
+      );
     } finally {
       vi.useRealTimers();
     }

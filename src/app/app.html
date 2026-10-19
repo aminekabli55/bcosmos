@@ -1,135 +1,277 @@
+<a class="skip-link" href="#main-content">Skip to content</a>
+
+<!-- Layered space backdrop: nebulae, two star fields, a coordinate grid and a moon. -->
+<div class="cosmos-backdrop" aria-hidden="true">
+  <div class="cosmos-backdrop__nebula cosmos-backdrop__nebula--violet"></div>
+  <div class="cosmos-backdrop__nebula cosmos-backdrop__nebula--cyan"></div>
+  <div class="cosmos-backdrop__nebula cosmos-backdrop__nebula--rose"></div>
+  <div class="cosmos-backdrop__stars cosmos-backdrop__stars--near"></div>
+  <div class="cosmos-backdrop__stars cosmos-backdrop__stars--far"></div>
+  <div class="cosmos-backdrop__grid"></div>
+  <div class="cosmos-backdrop__moon">
+    <span class="cosmos-backdrop__halo"></span>
+    <span class="cosmos-backdrop__disc"></span>
+    <span class="cosmos-backdrop__orbit"></span>
+  </div>
+</div>
+
 <header class="app-header">
   <a class="brand" routerLink="/repositories" aria-label="BCosmos home">
     <span class="brand__mark" aria-hidden="true">
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8">
-        <circle cx="12" cy="12" r="2.6" />
-        <ellipse cx="12" cy="12" rx="9.5" ry="4.2" transform="rotate(30 12 12)" />
-        <ellipse cx="12" cy="12" rx="9.5" ry="4.2" transform="rotate(-30 12 12)" />
+      <span class="brand__ring brand__ring--outer"></span>
+      <span class="brand__ring brand__ring--inner"></span>
+      <svg
+        viewBox="0 0 24 24"
+        width="19"
+        height="19"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.7"
+      >
+        <circle cx="12" cy="12" r="3.1" />
+        <ellipse cx="12" cy="12" rx="9.2" ry="4.1" transform="rotate(28 12 12)" opacity="0.85" />
+        <circle cx="19.6" cy="8.6" r="1.15" fill="currentColor" stroke="none" />
       </svg>
     </span>
     <span class="brand__text">
       <span class="brand__name">{{ title }}</span>
-      <span class="brand__tagline">AI code review lab</span>
+      <span class="brand__tagline">Code observatory</span>
     </span>
   </a>
 
   <nav class="app-nav" aria-label="Primary">
-    <a
-      routerLink="/repositories"
-      routerLinkActive="app-nav__link--active"
-      class="app-nav__link"
-      aria-label="Repositories"
-    >
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M4 5.5A2 2 0 0 1 6 3.5h4l2 2h6a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
-      </svg>
-      <span>Repositories</span>
-    </a>
-    <a
-      routerLink="/quality"
-      routerLinkActive="app-nav__link--active"
-      class="app-nav__link"
-      aria-label="Quality"
-    >
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z" />
-        <path d="M9 11.5l2 2 4-4" />
-      </svg>
-      <span>Quality</span>
-    </a>
-    <a
-      routerLink="/cosmos"
-      routerLinkActive="app-nav__link--active"
-      class="app-nav__link"
-      aria-label="Cosmos"
-    >
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <circle cx="12" cy="12" r="3" />
-        <ellipse cx="12" cy="12" rx="9" ry="3.5" transform="rotate(30 12 12)" />
-        <ellipse cx="12" cy="12" rx="9" ry="3.5" transform="rotate(-30 12 12)" />
-      </svg>
-      <span>Cosmos</span>
-    </a>
-    <a
-      routerLink="/history"
-      routerLinkActive="app-nav__link--active"
-      class="app-nav__link"
-      aria-label="History"
-    >
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <circle cx="12" cy="12" r="9" />
-        <polyline points="12 7 12 12 15 15" />
-      </svg>
-      <span>History</span>
-    </a>
-    <a
-      routerLink="/corpus"
-      routerLinkActive="app-nav__link--active"
-      class="app-nav__link"
-      aria-label="Corpus"
-    >
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5z" />
-        <path d="M6 6h10M6 10h10M6 14h6" />
-      </svg>
-      <span>Corpus</span>
-    </a>
-    <a
-      routerLink="/analytics"
-      routerLinkActive="app-nav__link--active"
-      class="app-nav__link"
-      aria-label="Analytics"
-    >
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M3 3v18h18" />
-        <path d="M7 15l4-5 3 3 4-6" />
-      </svg>
-      <span>Analytics</span>
-    </a>
-    <a
-      routerLink="/benchmarks"
-      routerLinkActive="app-nav__link--active"
-      class="app-nav__link"
-      aria-label="Benchmarks"
-    >
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-      </svg>
-      <span>Benchmarks</span>
-    </a>
-    <a
-      routerLink="/settings"
-      routerLinkActive="app-nav__link--active"
-      class="app-nav__link"
-      aria-label="Settings"
-    >
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 7 19.4a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 2.6 14H2.5a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 7a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 2.6V2.5a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.1a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
-      </svg>
-      <span>Settings</span>
-    </a>
-    <a
-      routerLink="/commit-reviews"
-      routerLinkActive="app-nav__link--active"
-      class="app-nav__link"
-      aria-label="Commit Review"
-    >
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9" />
-        <polyline points="9 3 9 9 19 9" />
-        <path d="M8 13h8M8 17h5" />
-      </svg>
-      <span>Reviews</span>
-    </a>
+    <div class="app-nav__group">
+      <span class="app-nav__kicker">Observe</span>
+      <a
+        routerLink="/repositories"
+        routerLinkActive="app-nav__link--active"
+        class="app-nav__link"
+        aria-label="Repositories"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="17"
+          height="17"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path
+            d="M4 5.5A2 2 0 0 1 6 3.5h4l2 2h6a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"
+          />
+        </svg>
+        <span>Repositories</span>
+      </a>
+      <a
+        routerLink="/quality"
+        routerLinkActive="app-nav__link--active"
+        class="app-nav__link"
+        aria-label="Quality"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="17"
+          height="17"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z" />
+          <path d="M9 11.5l2 2 4-4" />
+        </svg>
+        <span>Quality</span>
+      </a>
+      <a
+        routerLink="/cosmos"
+        routerLinkActive="app-nav__link--active"
+        class="app-nav__link"
+        aria-label="Cosmos"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="17"
+          height="17"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="2.6" />
+          <ellipse cx="12" cy="12" rx="9" ry="3.5" transform="rotate(30 12 12)" />
+          <ellipse cx="12" cy="12" rx="9" ry="3.5" transform="rotate(-30 12 12)" />
+        </svg>
+        <span>Cosmos</span>
+      </a>
+      <a
+        routerLink="/history"
+        routerLinkActive="app-nav__link--active"
+        class="app-nav__link"
+        aria-label="History"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="17"
+          height="17"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <polyline points="12 7 12 12 15 15" />
+        </svg>
+        <span>History</span>
+      </a>
+    </div>
+
+    <div class="app-nav__group">
+      <span class="app-nav__kicker">Analyse</span>
+      <a
+        routerLink="/corpus"
+        routerLinkActive="app-nav__link--active"
+        class="app-nav__link"
+        aria-label="Corpus"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="17"
+          height="17"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5z" />
+          <path d="M6 6h10M6 10h10M6 14h6" />
+        </svg>
+        <span>Corpus</span>
+      </a>
+      <a
+        routerLink="/analytics"
+        routerLinkActive="app-nav__link--active"
+        class="app-nav__link"
+        aria-label="Analytics"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="17"
+          height="17"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M3 3v18h18" />
+          <path d="M7 15l4-5 3 3 4-6" />
+        </svg>
+        <span>Analytics</span>
+      </a>
+      <a
+        routerLink="/benchmarks"
+        routerLinkActive="app-nav__link--active"
+        class="app-nav__link"
+        aria-label="Benchmarks"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="17"
+          height="17"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+        </svg>
+        <span>Benchmarks</span>
+      </a>
+      <a
+        routerLink="/commit-reviews"
+        routerLinkActive="app-nav__link--active"
+        class="app-nav__link"
+        aria-label="Commit Review"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="17"
+          height="17"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9" />
+          <polyline points="9 3 9 9 19 9" />
+          <path d="M8 13h8M8 17h5" />
+        </svg>
+        <span>Reviews</span>
+      </a>
+    </div>
+
+    <div class="app-nav__group app-nav__group--single">
+      <span class="app-nav__kicker">Configure</span>
+      <a
+        routerLink="/settings"
+        routerLinkActive="app-nav__link--active"
+        class="app-nav__link"
+        aria-label="Settings"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="17"
+          height="17"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="3" />
+          <path
+            d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 7 19.4a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 2.6 14H2.5a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 7a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 2.6V2.5a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.1a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"
+          />
+        </svg>
+        <span>Settings</span>
+      </a>
+    </div>
   </nav>
 
+  <div class="app-rail-footer">
+    <span class="moon-phase" aria-hidden="true"></span>
+    <div class="app-rail-footer__copy">
+      <span class="app-rail-footer__title">Read-only by design</span>
+      <span class="app-rail-footer__meta">Repositories are parsed, never built or run.</span>
+    </div>
+  </div>
 </header>
 
-<main class="app-main">
+<main class="app-main" id="main-content">
   <router-outlet />
 </main>
 
 <footer class="app-footer">
-  <span>BCosmos reads repositories, never builds or runs them.</span>
+  <span>BCosmos · an observatory for AI code review</span>
+  <span class="app-footer__meta">
+    <span class="app-footer__dot" aria-hidden="true"></span>
+    Java L3 · TypeScript L2
+  </span>
 </footer>

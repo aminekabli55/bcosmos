@@ -27,9 +27,21 @@ describe('App', () => {
       'Corpus',
       'Analytics',
       'Benchmarks',
-      'Settings',
       'Reviews',
+      'Settings',
     ]);
+  });
+
+  it('renders the space backdrop, the grouped navigation and a skip link', () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+
+    expect(root.querySelector('.cosmos-backdrop')).not.toBeNull();
+    expect(root.querySelector('.skip-link')?.getAttribute('href')).toBe('#main-content');
+    expect(
+      [...root.querySelectorAll('.app-nav__kicker')].map((kicker) => kicker.textContent?.trim()),
+    ).toEqual(['Observe', 'Analyse', 'Configure']);
   });
 
   it('should route to the repositories, quality, cosmos, history, corpus, analytics, benchmarks, settings and commit-reviews screens', () => {

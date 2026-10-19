@@ -2,6 +2,14 @@
 
 This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.1.6.
 
+## Design system
+
+The cosmic look lives in `src/styles.scss` (tokens, type, glass surfaces, motion) and `src/app/app.scss` (sidebar
+shell and space backdrop); component styles stay local and should consume the shared tokens only. The legacy token
+names `--surface-0/1`, `--text-primary`, `--text-muted` and `--bg-surface` are aliases kept for the Benchmarks and
+Commit Review screens. Every animation is optional decoration and is disabled under `prefers-reduced-motion`.
+See [ADR 0042](../docs/decisions/ADR-0042-cosmic-design-system.md).
+
 ## Development server
 
 To start a local development server, run:
