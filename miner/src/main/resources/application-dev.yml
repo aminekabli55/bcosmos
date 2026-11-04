@@ -1,0 +1,13 @@
+spring:
+  kafka:
+    # Local development against infrastructure/docker-compose.yml (profile `pipeline`).
+    bootstrap-servers: ${BCOSMOS_KAFKA_BOOTSTRAP:localhost:9092}
+
+bcosmos:
+  miner:
+    clone-dir: ${BCOSMOS_MINER_CLONE_DIR:data/repos}
+
+management:
+  endpoint:
+    health:
+      show-details: always

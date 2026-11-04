@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: miner
+  # The profile you get when nothing is set, exactly as in the backend (ADR 0018).
+  profiles:
+    default: dev
+  kafka:
+    consumer:
+      group-id: bcosmos-miner
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+
+server:
+  port: ${SERVER_PORT:8082}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+bcosmos:
+  miner:
+    # Hosts the miner may clone from; enforced before a single byte is fetched (spec v2 section 7.5).
+    allowed-hosts: ${BCOSMOS_CORPUS_ALLOWED_HOSTS:github.com,gitlab.com}
+    commit-window: ${BCOSMOS_MINER_COMMIT_WINDOW:50}
+    max-retry-attempts: ${BCOSMOS_MINER_MAX_RETRY:3}
+    initial-backoff-ms: ${BCOSMOS_MINER_INITIAL_BACKOFF_MS:500}
+    backoff-multiplier: ${BCOSMOS_MINER_BACKOFF_MULTIPLIER:2.0}
