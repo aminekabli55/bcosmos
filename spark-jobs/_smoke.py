@@ -1,0 +1,10 @@
+from pyspark.sql import SparkSession
+s = (SparkSession.builder.appName("smoke").master("local[1]")
+     .config("spark.ui.enabled", "false")
+     .config("spark.sql.shuffle.partitions", "1")
+     .getOrCreate())
+df = s.createDataFrame([(1, "a"), (2, "b")], "id int, name string")
+df.write.mode("overwrite").parquet("file:///C:/Users/amine/Desktop/workspace/Bcosmos/spark-jobs/_smoke_out")
+back = s.read.parquet("file:///C:/Users/amine/Desktop/workspace/Bcosmos/spark-jobs/_smoke_out")
+print("SPARK_OK", back.count(), sorted(r.name for r in back.collect()))
+s.stop()

@@ -1,0 +1,12 @@
+# Direct dependencies of the Spark jobs, pinned (spec section 0 rule 6).
+#
+# pyspark is only needed for a local test run; the jobs themselves run in the `apache/spark:4.2.0-python3` image,
+# which already ships the same version (ADR 0017). The pin is kept in step with the image tag in
+# infrastructure/docker-compose.yml on purpose.
+pyspark==4.2.0
+
+# The test runner and nothing else: the jobs use the standard library plus pyspark.
+pytest==9.1.1
+
+# Note (Phase 5): this file used to be UTF-16 with a BOM and CRLF endings, which `pip install -r` cannot read on
+# Linux. It is UTF-8 with LF now, and the test image installs from it.
