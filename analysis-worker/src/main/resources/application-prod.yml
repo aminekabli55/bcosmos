@@ -1,0 +1,27 @@
+# Production: no localhost defaults and no credentials in the repository. Every required value comes from the
+# environment, so the worker refuses to start rather than silently talking to the wrong broker or database.
+spring:
+  datasource:
+    url: jdbc:postgresql://${BCOSMOS_DB_HOST}:${BCOSMOS_DB_PORT}/${BCOSMOS_DB_NAME}
+    username: ${BCOSMOS_DB_USER}
+    password: ${BCOSMOS_DB_PASSWORD}
+    hikari:
+      pool-name: bcosmos-analysis-worker
+      maximum-pool-size: ${BCOSMOS_DB_POOL_SIZE:5}
+  kafka:
+    bootstrap-servers: ${BCOSMOS_KAFKA_BOOTSTRAP}
+
+bcosmos:
+  worker:
+    clone-dir: ${BCOSMOS_WORKER_CLONE_DIR}
+
+management:
+  endpoint:
+    health:
+      # Endpoint details are visible to anyone who can reach the port; never in production.
+      show-details: never
+
+logging:
+  level:
+    root: WARN
+    com.bcosmos: INFO

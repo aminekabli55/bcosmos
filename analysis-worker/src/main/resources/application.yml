@@ -1,0 +1,38 @@
+spring:
+  application:
+    name: analysis-worker
+  # The profile you get when nothing is set, exactly as in the backend (ADR 0018): local development just works,
+  # anything that is not local is explicit.
+  profiles:
+    default: dev
+  jpa:
+    hibernate:
+      # Liquibase is the only owner of the schema (ADR 0009); never let JPA change it.
+      ddl-auto: validate
+    open-in-view: false
+  liquibase:
+    # The backend owns the migrations; the worker only reads and writes rows.
+    enabled: false
+  kafka:
+    consumer:
+      group-id: bcosmos-analysis-worker
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+
+server:
+  port: ${SERVER_PORT:8081}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+bcosmos:
+  worker:
+    # Maximum retry attempts before sending to DLQ (ADR 0026).
+    max-retry-attempts: ${BCOSMOS_WORKER_MAX_RETRY:3}
+    initial-backoff-ms: ${BCOSMOS_WORKER_INITIAL_BACKOFF_MS:500}
+    backoff-multiplier: ${BCOSMOS_WORKER_BACKOFF_MULTIPLIER:2.0}
