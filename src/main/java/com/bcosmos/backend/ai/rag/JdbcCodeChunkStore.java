@@ -1,9 +1,13 @@
 package com.bcosmos.backend.ai.rag;
 
+import java.sql.PreparedStatement;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,6 +60,12 @@ public class JdbcCodeChunkStore implements CodeChunkStore {
     @Transactional
     public int replaceAll(long runId, String embedModel, List<EmbeddedChunk> chunks) {
         jdbc.update("delete from code_chunk where run_id = ? and embed_model = ?", runId, embedModel);
+        return upsertAll(runId, embedModel, chunks);
+    }
+
+    @Override
+    @Transactional
+    public int upsertAll(long runId, String embedModel, List<EmbeddedChunk> chunks) {
         if (chunks.isEmpty()) {
             return 0;
         }
@@ -79,6 +89,36 @@ public class JdbcCodeChunkStore implements CodeChunkStore {
         }
         jdbc.batchUpdate(INSERT, rows);
         return rows.size();
+    }
+
+    @Override
+    public Map<Long, String> storedTexts(long runId, String embedModel) {
+        Map<Long, String> texts = new LinkedHashMap<>();
+        jdbc.query("select symbol_id, text from code_chunk where run_id = ? and embed_model = ?",
+                rs -> {
+                    texts.put(rs.getLong("symbol_id"), rs.getString("text"));
+                }, runId, embedModel);
+        return texts;
+    }
+
+    @Override
+    @Transactional
+    public int prune(long runId, String embedModel, List<Long> keepSymbolIds) {
+        if (keepSymbolIds.isEmpty()) {
+            return jdbc.update("delete from code_chunk where run_id = ? and embed_model = ?", runId, embedModel);
+        }
+        // One array parameter rather than as many placeholders as the plan has chunks: a 458-file run chunks into
+        // well over a thousand symbols, and a statement that long is a worse idea than an array cast.
+        Integer removed = jdbc.execute((ConnectionCallback<Integer>) connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(
+                    "delete from code_chunk where run_id = ? and embed_model = ? and not (symbol_id = any (?))")) {
+                statement.setLong(1, runId);
+                statement.setString(2, embedModel);
+                statement.setArray(3, connection.createArrayOf("bigint", keepSymbolIds.toArray()));
+                return statement.executeUpdate();
+            }
+        });
+        return removed == null ? 0 : removed;
     }
 
     @Override

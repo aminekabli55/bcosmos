@@ -105,7 +105,10 @@ public class SuggestionService {
                 "the analysed source of " + file.getRelativePath() + " is not stored with this run, and a suggestion"
                         + " must be validated against it; re-run the analysis to store it"));
 
-        EmbeddingService.IndexedRun indexed = embeddings.ensureIndex(finding.getRunId(), embeddingModelId);
+        // The finding's own file is indexed first, so even a bounded build gives this suggestion useful
+        // neighbours (ADR 0044).
+        EmbeddingService.IndexedRun indexed = embeddings.ensureIndex(finding.getRunId(), embeddingModelId,
+                file.getRelativePath());
         EvidenceBundle bundle = retriever.retrieve(queryFor(finding, file, indexed), indexed.drafts());
 
         PromptTemplate template = prompts.load(PROMPT_NAME, PROMPT_VERSION);
@@ -189,7 +192,9 @@ public class SuggestionService {
                 finding.getSymbolQualifiedName(),
                 finding.getRuleId(),
                 finding.getMessage(),
-                finding.getSnippet());
+                finding.getSnippet(),
+                indexed.index().chunks(),
+                indexed.drafts().size());
     }
 
     private Map<String, String> promptValues(FindingEntity finding, FileRecordEntity file, EvidenceBundle bundle) {

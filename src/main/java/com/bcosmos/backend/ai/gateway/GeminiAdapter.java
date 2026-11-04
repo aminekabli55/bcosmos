@@ -26,6 +26,9 @@ public class GeminiAdapter implements LlmProviderAdapter {
     private static final String GENERATE_PATH = "/v1beta/models/%s:generateContent";
     private static final String EMBED_PATH = "/v1beta/models/%s:batchEmbedContents";
 
+    /** The turn that makes a system-only prompt a valid request; it adds no task of its own. */
+    private static final String FOLLOW_INSTRUCTIONS = "Follow the instructions above and answer.";
+
     private final AiProperties properties;
     private final ProviderCredentials credentials;
     private final RestClient http;
@@ -120,6 +123,15 @@ public class GeminiAdapter implements LlmProviderAdapter {
         }
         if (!system.isEmpty()) {
             body.putObject("systemInstruction").putArray("parts").addObject().put("text", system.toString());
+        }
+        if (contents.isEmpty()) {
+            // `contents` is required and a system instruction alone is not a conversation: every structured
+            // prompt in this codebase is one system message, and Gemini answers such a body with HTTP 400.
+            contents.addObject()
+                    .put("role", "user")
+                    .putArray("parts")
+                    .addObject()
+                    .put("text", FOLLOW_INSTRUCTIONS);
         }
         ObjectNode generation = body.putObject("generationConfig");
         generation.put("maxOutputTokens", request.maxOutputTokens());

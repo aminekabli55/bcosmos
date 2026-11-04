@@ -13,6 +13,7 @@ import com.bcosmos.backend.config.RetrievalProperties;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -20,17 +21,22 @@ import org.springframework.stereotype.Service;
 /**
  * Builds the vector index of one run: chunk the symbols, embed the chunks, store the vectors (spec v2 section 7.2).
  *
- * <p>The index is built on demand, the first time a finding of that run needs retrieval, and it is idempotent: if
- * the run already holds one chunk per chunk-source for the same embedding model, nothing is embedded again. That
- * matters because embedding is the one part of this flow that costs money per call.</p>
+ * <p>The index is built on demand, the first time a finding of that run needs retrieval, and it is resumable: each
+ * batch is written as soon as the provider answers, and a build skips every chunk whose stored text is unchanged.
+ * A rate limit or a restart therefore costs the batch that failed, not the whole index (ADR 0044).</p>
  *
- * <p>No transaction is held across a provider call: the chunks are embedded first, and the rows are replaced in
- * one short transaction afterwards. A provider failure therefore cannot leave a half-written index behind.</p>
+ * <p>One build is also bounded: {@code bcosmos.retrieval.index-texts-per-call} texts at most are sent, so a
+ * suggestion on a large repository answers in bounded time instead of holding the request for the dozen minutes a
+ * whole 1,600-chunk index takes on a free tier. The rest of the index follows with the next suggestion, and
+ * retrieval uses whatever is stored by then — a partial index is a smaller evidence bundle, never a wrong one.</p>
+ *
+ * <p>No transaction is held across a provider call: each batch is embedded, then written in its own short
+ * transaction, with no database connection open while waiting.</p>
  *
  * <p>A build is a sequence rather than one answer, so it sits out the rate limits it can afford to: each batch is
  * wrapped in a {@link RateLimitPatience}, which sleeps what the provider asked for and retries that batch, up to
  * {@code bcosmos.retrieval.rate-limit-patience} for the build as a whole (ADR 0041). The per-call budget stays what
- * it was — one call still fails fast — and the sleeping happens between calls, with no database connection open.</p>
+ * it was — one call still fails fast.</p>
  */
 @Service
 public class EmbeddingService {
@@ -64,6 +70,16 @@ public class EmbeddingService {
      * @throws EmbeddingDimensionException when the model's declared width is not the configured index width
      */
     public IndexedRun ensureIndex(long runId, Long modelId) {
+        return ensureIndex(runId, modelId, null);
+    }
+
+    /**
+     * Makes sure the run has an index, embedding at most one call's budget of what is missing.
+     *
+     * @param preferredFile file whose chunks are embedded first, so the finding that triggered the build gets its
+     *                      own file's neighbours before the rest of the repository (may be {@code null})
+     */
+    public IndexedRun ensureIndex(long runId, Long modelId, String preferredFile) {
         // The master switch is checked before the registry, so a switched-off layer answers "AI is switched off"
         // rather than complaining about a model the user cannot be expected to have enabled yet.
         if (!enablement.enabled()) {
@@ -80,27 +96,24 @@ public class EmbeddingService {
 
         String embedModel = embedModelOf(model);
         List<CodeChunkDraft> drafts = chunker.chunks(sources.sourcesOf(runId));
-        long stored = store.count(runId, embedModel);
-        if (stored == drafts.size() && stored > 0) {
-            log.debug("reusing {} chunk(s) of run {} for {}", stored, runId, embedModel);
-            return new IndexedRun(drafts,
-                    new EmbeddingIndex(runId, model, embedModel, (int) stored, true, null, skippedSymbols(runId)));
-        }
-        if (drafts.isEmpty()) {
-            store.replaceAll(runId, embedModel, List.of());
-            return new IndexedRun(drafts,
-                    new EmbeddingIndex(runId, model, embedModel, 0, false, null, skippedSymbols(runId)));
-        }
+        // Drop rows this plan no longer has, so a stale chunk cannot make a partial index look complete.
+        store.prune(runId, embedModel, drafts.stream().map(CodeChunkDraft::symbolId).toList());
 
-        List<CodeChunkStore.EmbeddedChunk> embedded = new ArrayList<>(drafts.size());
+        Map<Long, String> stored = store.storedTexts(runId, embedModel);
+        List<CodeChunkDraft> missing = ordered(drafts.stream()
+                .filter(draft -> !draft.text().equals(stored.get(draft.symbolId())))
+                .toList(), preferredFile);
+        int budget = properties.indexTextsPerCall() <= 0 ? Integer.MAX_VALUE : properties.indexTextsPerCall();
+        List<CodeChunkDraft> toEmbed = missing.subList(0, Math.min(budget, missing.size()));
+
         Tokens tokens = new Tokens();
         // One patience per build, not one per call: it is the index build as a whole that may sit out a few quota
         // windows, and the gateway's per-call budget is deliberately too short to absorb one (ADR 0041).
         RateLimitPatience patience = new RateLimitPatience(properties.rateLimitPatience(),
                 RateLimitPatience.Sleeper.THREAD);
-        for (int start = 0; start < drafts.size(); start += properties.embedBatchSize()) {
-            List<CodeChunkDraft> batch = drafts.subList(start, Math.min(start + properties.embedBatchSize(),
-                    drafts.size()));
+        for (int start = 0; start < toEmbed.size(); start += properties.embedBatchSize()) {
+            List<CodeChunkDraft> batch = toEmbed.subList(start, Math.min(start + properties.embedBatchSize(),
+                    toEmbed.size()));
             List<String> texts = batch.stream().map(CodeChunkDraft::text).toList();
             EmbedResult result = patience.call(() -> llm.embed(new EmbedRequest(model.id(), texts)));
             if (result.vectors().size() != batch.size()) {
@@ -109,18 +122,46 @@ public class EmbeddingService {
                 throw new IllegalStateException(model.label() + " returned " + result.vectors().size()
                         + " vector(s) for " + batch.size() + " chunk(s)");
             }
+            List<CodeChunkStore.EmbeddedChunk> rows = new ArrayList<>(batch.size());
             for (int index = 0; index < batch.size(); index++) {
-                embedded.add(new CodeChunkStore.EmbeddedChunk(runId, batch.get(index), embedModel,
+                rows.add(new CodeChunkStore.EmbeddedChunk(runId, batch.get(index), embedModel,
                         result.vectors().get(index)));
             }
+            // Written now, not after the loop: a rate limit two batches later must not throw this batch away.
+            store.upsertAll(runId, embedModel, rows);
             tokens.add(result.usage());
         }
 
-        int storedCount = store.replaceAll(runId, embedModel, embedded);
-        log.info("indexed {} chunk(s) of run {} with {} in {} embedding call(s)", storedCount, runId, embedModel,
-                tokens.calls());
-        return new IndexedRun(drafts, new EmbeddingIndex(runId, model, embedModel, storedCount, false,
-                tokens.usage(), skippedSymbols(runId)));
+        int storedCount = (int) store.count(runId, embedModel);
+        boolean complete = storedCount == drafts.size();
+        if (!toEmbed.isEmpty()) {
+            log.info("indexed {} of {} chunk(s) of run {} with {} in {} embedding call(s){}", storedCount,
+                    drafts.size(), runId, embedModel, tokens.calls(), complete ? ""
+                            : "; the next request continues with the rest");
+        } else {
+            log.debug("reusing {} chunk(s) of run {} for {}", storedCount, runId, embedModel);
+        }
+        return new IndexedRun(drafts, new EmbeddingIndex(runId, model, embedModel, storedCount,
+                toEmbed.isEmpty() && !drafts.isEmpty(), tokens.usage(), skippedSymbols(runId)));
+    }
+
+    /** Puts the chunks of one file first, keeping the plan's order inside each group. */
+    private static List<CodeChunkDraft> ordered(List<CodeChunkDraft> drafts, String preferredFile) {
+        if (preferredFile == null || drafts.isEmpty()) {
+            return drafts;
+        }
+        List<CodeChunkDraft> ordered = new ArrayList<>(drafts.size());
+        for (CodeChunkDraft draft : drafts) {
+            if (draft.relativePath().equals(preferredFile)) {
+                ordered.add(draft);
+            }
+        }
+        for (CodeChunkDraft draft : drafts) {
+            if (!draft.relativePath().equals(preferredFile)) {
+                ordered.add(draft);
+            }
+        }
+        return ordered;
     }
 
     /**

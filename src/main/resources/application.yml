@@ -56,6 +56,12 @@ bcosmos:
     token-budget: ${BCOSMOS_RETRIEVAL_TOKEN_BUDGET:6000}
     max-chunk-chars: ${BCOSMOS_RETRIEVAL_MAX_CHUNK_CHARS:6000}
     embed-batch-size: ${BCOSMOS_RETRIEVAL_EMBED_BATCH_SIZE:16}
+    # How many not-yet-embedded texts one suggestion call may send (ADR 0044). The default fits within the
+    # 100-texts-per-minute allowance of a free Gemini key, so the first suggestion answers instead of sitting out
+    # quota windows; the rest of a large run's index follows with the next suggestion. Every finished batch is
+    # stored, so later calls reuse it and continue where the previous one stopped. Zero means "embed the whole run
+    # in one call" (only sensible on a provider without a per-minute quota).
+    index-texts-per-call: ${BCOSMOS_RETRIEVAL_INDEX_TEXTS_PER_CALL:96}
     # How long one index build may sit out rate limits in total (ADR 0041). The per-call budget (bcosmos.ai.timeout)
     # is deliberately too short to absorb a per-minute quota window, so the build waits here instead: it sleeps what
     # the provider asked for and retries the batch. A quota that asks for longer than this fails the build with the
@@ -63,12 +69,17 @@ bcosmos:
     rate-limit-patience: ${BCOSMOS_RETRIEVAL_RATE_LIMIT_PATIENCE:2m}
   ai:
     enabled: ${BCOSMOS_AI_ENABLED:false}
-    timeout: ${BCOSMOS_AI_TIMEOUT:30s}
+    # One attempt's budget. A current reasoning model on a retrieval-sized prompt (8k tokens) needs longer than the
+    # 30s this used to be: gemini-3.8-flash answered the same suggestion in 20s once and exceeded 30s on the next
+    # finding, so 30s turned a slow answer into a 504. Embedding calls finish in about a second either way (ADR 0045).
+    timeout: ${BCOSMOS_AI_TIMEOUT:90s}
     connect-timeout: ${BCOSMOS_AI_CONNECT_TIMEOUT:5s}
     max-attempts: ${BCOSMOS_AI_MAX_ATTEMPTS:3}
     initial-backoff: ${BCOSMOS_AI_INITIAL_BACKOFF:500ms}
     backoff-multiplier: ${BCOSMOS_AI_BACKOFF_MULTIPLIER:2.0}
-    max-output-tokens: ${BCOSMOS_AI_MAX_OUTPUT_TOKENS:2048}
+    # A suggestion carries a summary, an explanation, citations and a diff. 2048 tokens truncates that mid-JSON on
+    # a large file, which the gateway then sees as "not valid JSON" and has to retry; 4096 leaves room (ADR 0045).
+    max-output-tokens: ${BCOSMOS_AI_MAX_OUTPUT_TOKENS:4096}
     # Master key for credentials stored through the settings screen (ADR 0038). Absent means "no stored keys": a
     # provider then reads the environment variable its row names, and pasting a key is refused with a message
     # saying so. Generate it with: openssl rand -base64 32. Never commit a real value here. It wins over the key

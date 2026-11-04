@@ -62,6 +62,12 @@ public class Retriever {
     public EvidenceBundle retrieve(RetrievalQuery query, List<CodeChunkDraft> drafts) {
         List<String> notes = new ArrayList<>();
         notes.add(NO_RELATIONSHIPS);
+        if (query.embedModel() != null && query.indexedChunks() < query.totalChunks()) {
+            // A bounded build indexes part of the run per request (ADR 0044). Saying so keeps a thin evidence
+            // bundle from looking like a repository with nothing similar in it.
+            notes.add("the semantic index covers " + query.indexedChunks() + " of " + query.totalChunks()
+                    + " chunk(s) of this run; each further suggestion indexes more of it");
+        }
 
         Optional<CodeChunkDraft> enclosing = enclosing(drafts, query);
         enclosing.ifPresentOrElse(
@@ -162,6 +168,8 @@ public class Retriever {
      * @param ruleId               rule that fired
      * @param message              the tool's own message
      * @param snippet              the flagged source lines stored with the finding
+     * @param indexedChunks        how many of the run's chunks are already embedded
+     * @param totalChunks          how many chunks the run has in total
      */
     public record RetrievalQuery(
             long runId,
@@ -172,7 +180,9 @@ public class Retriever {
             String symbolQualifiedName,
             String ruleId,
             String message,
-            String snippet) {
+            String snippet,
+            int indexedChunks,
+            int totalChunks) {
 
         /** The text that is embedded to find similar chunks. */
         public String queryText() {

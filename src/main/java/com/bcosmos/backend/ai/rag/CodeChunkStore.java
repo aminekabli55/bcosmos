@@ -1,6 +1,7 @@
 package com.bcosmos.backend.ai.rag;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -22,6 +23,35 @@ public interface CodeChunkStore {
      * @return how many chunks are stored afterwards
      */
     int replaceAll(long runId, String embedModel, List<EmbeddedChunk> chunks);
+
+    /**
+     * Writes the chunks of one finished batch, leaving the rest of the run's index in place (ADR 0044).
+     *
+     * <p>This is what makes a build resumable: every batch that the provider answered is durable immediately, so a
+     * rate limit after it costs only the batch that failed, not the whole index. The rows are written under the same
+     * conflict key as {@link #replaceAll}, so re-embedding a chunk updates it in place.</p>
+     *
+     * @return how many rows were written
+     */
+    int upsertAll(long runId, String embedModel, List<EmbeddedChunk> chunks);
+
+    /**
+     * The text of every stored chunk of one run and model, keyed by symbol id.
+     *
+     * <p>A build compares it with the chunk plan: a chunk whose stored text is unchanged needs no call, and one
+     * whose text differs was produced by another chunking limit and must be embedded again.</p>
+     */
+    Map<Long, String> storedTexts(long runId, String embedModel);
+
+    /**
+     * Removes stored chunks whose symbol is no longer part of the run's chunk plan.
+     *
+     * <p>Without it a stale row would both survive in retrieval and make a partial index look complete, because
+     * completeness is "as many rows as the plan has chunks".</p>
+     *
+     * @return how many rows were removed
+     */
+    int prune(long runId, String embedModel, List<Long> keepSymbolIds);
 
     /** How many chunks one run has for one embedding model. */
     long count(long runId, String embedModel);

@@ -108,3 +108,9 @@ databaseChangeLog:
       file: changes/0027-drop-model-default.yaml
       relativeToChangelogFile: true
 
+  # The seeded gemini-2.5-flash is restricted to projects that already used it; register the model Google
+  # recommends for new projects instead (ADR 0045).
+  - include:
+      file: changes/0028-seed-current-gemini-chat-model.yaml
+      relativeToChangelogFile: true
+

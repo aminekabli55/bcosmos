@@ -29,7 +29,7 @@ class SymbolChunkerTest {
             """;
 
     private final SymbolChunker chunker = new SymbolChunker(
-            new RetrievalProperties(1536, 8, 6000, 200, 16, Duration.ofMinutes(2)));
+            new RetrievalProperties(1536, 8, 6000, 200, 16, 96, Duration.ofMinutes(2)));
 
     @Test
     void buildsOneChunkPerTypeAndMethodWithAHeaderAndTheExactLines() {
@@ -71,7 +71,7 @@ class SymbolChunkerTest {
     @Test
     void truncatesAHugeDeclarationAndSaysSo() {
         SymbolChunker tiny = new SymbolChunker(
-                new RetrievalProperties(1536, 8, 6000, 60, 16, Duration.ofMinutes(2)));
+                new RetrievalProperties(1536, 8, 6000, 60, 16, 96, Duration.ofMinutes(2)));
 
         List<CodeChunkDraft> chunks = tiny.chunks(List.of(
                 source(1, SymbolKind.CLASS, "com.example.Reader", 3, 10)));

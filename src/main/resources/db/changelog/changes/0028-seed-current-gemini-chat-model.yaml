@@ -1,0 +1,56 @@
+databaseChangeLog:
+  # 0008 seeded gemini-2.5-flash, which was the current model when Phase 2 was written. Google now restricts the
+  # 2.5 family to projects that used it in the past: every other project gets HTTP 404 from generateContent, while
+  # the models list still advertises it (Gemini API forum, September 2026). The structured suggestion call was
+  # therefore rejected before it ever reached the model. This adds the model Google recommends for new projects;
+  # the 2.5 row is left exactly as the user configured it, because registry rows are user data.
+  - changeSet:
+      id: 0028-seed-current-gemini-chat-model
+      author: bcosmos
+      comment: >-
+        Register gemini-3.8-flash for the gemini provider, disabled like every seeded model: sending source code to
+        a model stays an explicit opt-in in Settings (spec v2 section 10).
+      changes:
+        - insert:
+            tableName: llm_model
+            columns:
+              - column:
+                  name: provider_id
+                  valueComputed: "(SELECT id FROM llm_provider WHERE code = 'gemini')"
+              - column:
+                  name: model_name
+                  value: gemini-3.8-flash
+              - column:
+                  name: kind
+                  value: HOSTED
+              - column:
+                  name: capability
+                  value: CHAT
+              - column:
+                  name: enabled
+                  valueBoolean: false
+              - column:
+                  name: context_window
+                  valueNumeric: 1000000
+              - column:
+                  name: cost_per_1k_in
+                  valueNumeric: 0
+              - column:
+                  name: cost_per_1k_out
+                  valueNumeric: 0
+              - column:
+                  name: notes
+                  value: >-
+                    Current Gemini Flash model. Pricing is not seeded because it changes; leave the cost columns at
+                    zero if you do not want a cost estimate. The seeded gemini-2.5-flash row answers HTTP 404 for
+                    projects created after Google restricted the 2.5 family.
+              - column:
+                  name: created_at
+                  valueComputed: now()
+              - column:
+                  name: updated_at
+                  valueComputed: now()
+      rollback:
+        - delete:
+            tableName: llm_model
+            where: "model_name = 'gemini-3.8-flash'"
