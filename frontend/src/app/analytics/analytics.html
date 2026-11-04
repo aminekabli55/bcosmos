@@ -1,0 +1,585 @@
+@if (loading()) {
+  <section class="card">
+    <p class="state" role="status">Loading the gold snapshot…</p>
+  </section>
+} @else if (error()) {
+  <section class="card">
+    <div class="notice notice--error" role="alert">{{ error() }}</div>
+  </section>
+} @else if (overview(); as snapshot) {
+  <section class="card">
+    <div class="card__head">
+      <div>
+        <h1>Analytics</h1>
+        <p class="card__subtitle">
+          Corpus charts over the Spark gold tables — every figure belongs to the snapshot named here, and every chart
+          opens the records it was computed from.
+        </p>
+      </div>
+      <div class="head-actions">
+        @if (aggregatesLoading()) {
+          <span class="muted">loading…</span>
+        }
+        <button type="button" class="button button--ghost" (click)="load()" [disabled]="loading()">Refresh</button>
+      </div>
+    </div>
+
+    @if (snapshot.available) {
+      <dl class="snapshot">
+        <div>
+          <dt>Dataset version</dt>
+          <dd class="mono">{{ snapshot.datasetVersion }}</dd>
+        </div>
+        <div>
+          <dt>Generated</dt>
+          <dd>{{ formatInstant(snapshot.generatedAt) }}</dd>
+        </div>
+        <div>
+          <dt>Written by</dt>
+          <dd class="mono">{{ snapshot.source ?? '—' }}</dd>
+        </div>
+        <div>
+          <dt>Drill-down depth</dt>
+          <dd>
+            @if (snapshot.drilldownCommits !== null) {
+              last {{ snapshot.drilldownCommits }} commits per repository
+            } @else {
+              not recorded in this snapshot
+            }
+          </dd>
+        </div>
+      </dl>
+
+      <div class="filters">
+        <div class="field">
+          <label for="analytics-repository">Repository</label>
+          <select
+            id="analytics-repository"
+            class="select"
+            [ngModel]="selectedRepositoryId() ?? ''"
+            (ngModelChange)="selectRepository($event)"
+          >
+            <option value="">All repositories ({{ snapshot.repositoryRefs.length }})</option>
+            @for (repository of snapshot.repositoryRefs; track repository.repositoryId) {
+              <option [value]="repository.repositoryId">{{ repositoryOption(repository) }}</option>
+            }
+          </select>
+        </div>
+        <div class="field">
+          <label for="analytics-rule">Rule (time to fix)</label>
+          <select id="analytics-rule" class="select" [ngModel]="selectedRuleId() ?? ''" (ngModelChange)="selectRule($event)">
+            <option value="">Every rule</option>
+            @for (rule of ruleChoices(); track rule.ruleId) {
+              <option [value]="rule.ruleId">{{ rule.ruleId }} ({{ rule.findings }})</option>
+            }
+          </select>
+        </div>
+        <button type="button" class="button button--ghost" (click)="clearFilters()">Clear filters</button>
+      </div>
+
+      <p class="provenance">
+        Panels below are filtered to <strong>{{ selectedRepositoryName() }}</strong>
+        @if (selectedRuleId(); as ruleId) {
+          <span>, rule <span class="mono">{{ ruleId }}</span></span>
+        }
+        from dataset <span class="mono">{{ snapshot.datasetVersion }}</span>.
+      </p>
+
+      <dl class="counters">
+        @for (kpi of kpis(); track kpi.label) {
+          <div>
+            <dt>{{ kpi.label }}</dt>
+            <dd>{{ kpi.value }}</dd>
+            <span class="counter-hint">{{ kpi.hint }}</span>
+          </div>
+        }
+      </dl>
+    } @else {
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 3v18h18" />
+          <path d="M7 15l4-5 3 3 4-6" />
+        </svg>
+        <strong>No gold snapshot yet</strong>
+        <span>The analytics screens read tables that a Spark job writes. Nothing has been loaded into this database.</span>
+        <span>Produce one with the lakehouse job, then refresh this page:</span>
+        <code class="command">cd spark-jobs &amp;&amp; python -m batch.load_gold --warehouse /warehouse</code>
+      </div>
+    }
+  </section>
+
+  @if (snapshot.available) {
+    <!-- ── charts ─────────────────────────────────────────────────────────── -->
+    <div class="chart-grid">
+      <section class="card" aria-labelledby="rules-heading">
+        <div class="card__head">
+          <div>
+            <h2 id="rules-heading">Findings by rule</h2>
+            <p class="card__subtitle">Click a bar to open the findings behind it.</p>
+          </div>
+        </div>
+        @if (ruleSeries().labels.length === 0) {
+          <p class="state">No rule rows in this snapshot for the current filter.</p>
+        } @else {
+          @if (chartsSupported()) {
+            <div class="chart chart--tall">
+              <canvas #ruleCanvas role="img" aria-label="Findings per rule"></canvas>
+            </div>
+          }
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Rule</th>
+                  <th scope="col">Repository</th>
+                  <th scope="col">Findings</th>
+                  <th scope="col">Per KLOC</th>
+                  <th scope="col">Files</th>
+                  <th scope="col"></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of ruleSeries().meta; track row.repositoryId + row.ruleId) {
+                  <tr>
+                    <td class="mono">{{ row.ruleId }}</td>
+                    <td>{{ repositoryNames().get(row.repositoryId) ?? row.repositoryId }}</td>
+                    <td>{{ row.findings }}</td>
+                    <td>{{ formatDensity(row.findingsPerKloc) }}</td>
+                    <td>{{ row.filesAffected }}</td>
+                    <td class="cell-action">
+                      <button
+                        type="button"
+                        class="button button--ghost button--sm"
+                        (click)="openDrill(row.ruleId + ' · ' + (repositoryNames().get(row.repositoryId) ?? row.repositoryId), { repositoryId: row.repositoryId, ruleId: row.ruleId })"
+                      >
+                        Records
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+
+      <section class="card" aria-labelledby="severity-heading">
+        <div class="card__head">
+          <div>
+            <h2 id="severity-heading">Severity mix</h2>
+            <p class="card__subtitle">Click an arc to open the findings at that severity.</p>
+          </div>
+        </div>
+        @if (severitySeries().values.every(isZero)) {
+          <p class="state">No severity was recorded in this snapshot.</p>
+        } @else {
+          @if (chartsSupported()) {
+            <div class="chart">
+              <canvas #severityCanvas role="img" aria-label="Findings per severity"></canvas>
+            </div>
+          }
+          <ul class="legend">
+            @for (row of severitySeries().meta; track row.severity) {
+              <li>
+                <button
+                  type="button"
+                  class="legend__item"
+                  (click)="openDrill('Severity ' + row.severity, { severity: row.severity, repositoryId: selectedRepositoryId() })"
+                >
+                  <span class="badge" [class]="'badge badge--severity-' + row.severity">{{ row.severity }}</span>
+                  <span class="legend__value">{{ row.findings }}</span>
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+
+      <section class="card" aria-labelledby="trend-heading">
+        <div class="card__head">
+          <div>
+            <h2 id="trend-heading">Quality trend</h2>
+            <p class="card__subtitle">
+              Findings per KLOC per UTC week. Click a week to open its findings.
+            </p>
+          </div>
+        </div>
+        @if (trendSeries().labels.length === 0) {
+          <p class="state">No weekly buckets for the current filter.</p>
+        } @else {
+          @if (chartsSupported() && selectedRepositoryId() !== null) {
+            <div class="chart">
+              <canvas #trendCanvas role="img" aria-label="Findings per KLOC over time"></canvas>
+            </div>
+          }
+          @if (selectedRepositoryId() === null) {
+            <div class="notice notice--warn">
+              This chart plots one repository at a time: the trend of a whole corpus is a sum of repositories of very
+              different sizes. Pick a repository above to draw it, or read the weeks in the table.
+            </div>
+          }
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Week starting</th>
+                  <th scope="col">Repository</th>
+                  <th scope="col">Findings</th>
+                  <th scope="col">Per KLOC</th>
+                  <th scope="col">Files</th>
+                  <th scope="col">Parse failures</th>
+                  <th scope="col"></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (point of trendSeries().meta; track point.repositoryId + point.bucketStart) {
+                  <tr>
+                    <td class="mono">{{ point.bucketStart }}</td>
+                    <td>{{ repositoryNames().get(point.repositoryId) ?? point.repositoryId }}</td>
+                    <td>{{ point.findings }}</td>
+                    <td>{{ formatDensity(point.densityPerKloc) }}</td>
+                    <td>{{ point.filesAnalysed }}</td>
+                    <td>{{ point.parseFailures }}</td>
+                    <td class="cell-action">
+                      <button
+                        type="button"
+                        class="button button--ghost button--sm"
+                        (click)="openDrill('Week of ' + point.bucketStart, { repositoryId: point.repositoryId, from: point.bucketStart, to: weekEnd(point.bucketStart) })"
+                      >
+                        Records
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+
+      <section class="card" aria-labelledby="time-to-fix-heading">
+        <div class="card__head">
+          <div>
+            <h2 id="time-to-fix-heading">Commits until a finding is resolved</h2>
+            <p class="card__subtitle">Per rule, counted in commits — never in days: commit timestamps are not commits.</p>
+          </div>
+        </div>
+        @if (timeToFixSeries().labels.length === 0) {
+          <p class="state">No resolved pairs in this snapshot for the current filter.</p>
+        } @else {
+          <dl class="inline-stats">
+            <div>
+              <dt>Mean observed distance</dt>
+              <dd>{{ meanDistanceText() }}</dd>
+            </div>
+            <div>
+              <dt>Already broken at the window root</dt>
+              <dd>
+                @if (lowerBoundPairs() > 0) {
+                  {{ lowerBoundPairs() }} pairs (lower bound, excluded from the mean)
+                } @else {
+                  0
+                }
+              </dd>
+            </div>
+          </dl>
+          @if (chartsSupported()) {
+            <div class="chart">
+              <canvas #timeToFixCanvas role="img" aria-label="Resolved findings per number of commits"></canvas>
+            </div>
+          }
+          @if (lowerBoundPairs() > 0) {
+            <p class="chart-note">
+              <span class="chart-note__swatch chart-note__swatch--lower-bound" aria-hidden="true"></span>
+              The grey bar is a lower bound: those findings were already present at the oldest commit the corpus kept,
+              so the real distance is at least what the corpus can see — it is never averaged in.
+            </p>
+          }
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Rule</th>
+                  <th scope="col">Commits until resolved</th>
+                  <th scope="col">Resolved pairs</th>
+                  <th scope="col">Introductions observed</th>
+                  <th scope="col"></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (bucket of timeToFixSeries().meta; track $index) {
+                  @if (bucket) {
+                    <tr>
+                      <td class="mono">{{ bucket.ruleId }}</td>
+                      <td>
+                        @if (bucket.commitsUntilResolved !== null) {
+                          {{ bucket.commitsUntilResolved }}
+                        } @else {
+                          <span class="muted">lower bound</span>
+                        }
+                      </td>
+                      <td>{{ bucket.resolvedPairs }}</td>
+                      <td>{{ bucket.observedIntroductions }}</td>
+                      <td class="cell-action">
+                        <button
+                          type="button"
+                          class="button button--ghost button--sm"
+                          (click)="openDrill(bucket.ruleId, { repositoryId: bucket.repositoryId, ruleId: bucket.ruleId })"
+                        >
+                          Records
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+    </div>
+
+    <!-- ── hotspots ───────────────────────────────────────────────────────── -->
+    <section class="card" aria-labelledby="hotspots-heading">
+      <div class="card__head">
+        <div>
+          <h2 id="hotspots-heading">Triage hotspots</h2>
+          <p class="card__subtitle">
+            A heuristic ranking, not a measurement: every component is shown with its raw value, its within-repository
+            percentile and its contribution to the score.
+          </p>
+        </div>
+      </div>
+
+      @if (hotspots().length === 0) {
+        <p class="state">No ranked files for the current filter.</p>
+      } @else {
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col">File</th>
+                <th scope="col">Score</th>
+                <th scope="col">Churn</th>
+                <th scope="col">Complexity (proxy)</th>
+                <th scope="col">Open findings</th>
+                <th scope="col">Latest revision</th>
+                <th scope="col"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (hotspot of hotspots(); track hotspot.repositoryId + hotspot.filePath) {
+                <tr [class.is-selected]="expandedHotspot() === hotspotKey(hotspot)">
+                  <td>{{ hotspot.rankInRepository }}</td>
+                  <td>
+                    <span class="mono truncate" [title]="hotspot.filePath">{{ hotspot.filePath }}</span>
+                    @if (selectedRepositoryId() === null) {
+                      <span class="muted"> · {{ repositoryNames().get(hotspot.repositoryId) ?? hotspot.repositoryId }}</span>
+                    }
+                  </td>
+                  <td class="score">{{ hotspot.score.toFixed(3) }}</td>
+                  <td>{{ hotspot.churn }}</td>
+                  <td>{{ hotspot.complexityProxy }}</td>
+                  <td>{{ hotspot.openFindings }}</td>
+                  <td class="mono">{{ hotspot.latestCommitHash ? hotspot.latestCommitHash.substring(0, 7) : '—' }}</td>
+                  <td class="cell-action">
+                    <button type="button" class="button button--ghost button--sm" (click)="toggleHotspot(hotspotKey(hotspot))">
+                      {{ expandedHotspot() === hotspotKey(hotspot) ? 'Hide' : 'Why' }}
+                    </button>
+                  </td>
+                </tr>
+                @if (expandedHotspot() === hotspotKey(hotspot)) {
+                  <tr class="detail-row">
+                    <td colspan="8">
+                      <div class="component-grid">
+                        @for (component of hotspotComponents(hotspot); track component.key) {
+                          <div class="component" [class.component--unmeasured]="!component.measured">
+                            <span class="component__label">{{ component.label }}</span>
+                            <span class="component__raw">{{ component.raw }}</span>
+                            <span class="component__scores">
+                              @if (component.score !== null) {
+                                percentile {{ (component.score * 100).toFixed(0) }}% ·
+                                contribution {{ component.contribution?.toFixed(3) }}
+                              } @else {
+                                not measured
+                              }
+                            </span>
+                            @if (component.note) {
+                              <span class="component__note">{{ component.note }}</span>
+                            }
+                          </div>
+                        }
+                      </div>
+                      <p class="chart-note">
+                        Weights in this snapshot: <span class="mono">{{ hotspot.weights ?? '—' }}</span>, divided by the
+                        measured weight sum <span class="mono">{{ hotspot.weightSumMeasured }}</span>.
+                      </p>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+
+    <!-- ── dataset card ───────────────────────────────────────────────────── -->
+    <section class="card" aria-labelledby="dataset-heading">
+      <div class="card__head">
+        <div>
+          <h2 id="dataset-heading">Dataset card</h2>
+          <p class="card__subtitle">
+            The fix-triple dataset of this snapshot: how many triples each split holds, and which repositories are in
+            it. The full card, with the licence of every repository, lives in
+            <span class="mono">docs/dataset-card.md</span>.
+          </p>
+        </div>
+      </div>
+
+      @if (splits().length === 0) {
+        <p class="state">No dataset rows in this snapshot.</p>
+      } @else {
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Split</th>
+                <th scope="col">Triples</th>
+                <th scope="col">Repositories</th>
+                <th scope="col">Rules</th>
+                <th scope="col">Snippet changed</th>
+                <th scope="col">Introductions unobserved</th>
+                <th scope="col">Max changed lines</th>
+                <th scope="col"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (split of splits(); track split.split) {
+                <tr [class.is-selected]="splitDetail()?.split === split.split">
+                  <td><span class="badge badge--plain">{{ split.split }}</span></td>
+                  <td>{{ split.triples }}</td>
+                  <td>{{ split.repositories }}</td>
+                  <td>{{ split.rules }}</td>
+                  <td>{{ split.snippetChanged }}</td>
+                  <td>{{ split.introductionsUnobserved }}</td>
+                  <td>{{ split.maxChangedLines }}</td>
+                  <td class="cell-action">
+                    <button type="button" class="button button--ghost button--sm" (click)="showSplit(split.split)">
+                      {{ splitDetail()?.split === split.split ? 'Hide' : 'Repositories' }}
+                    </button>
+                  </td>
+                </tr>
+                @if (splitDetail()?.split === split.split) {
+                  <tr class="detail-row">
+                    <td colspan="8">
+                      <ul class="split-repositories">
+                        @for (repository of splitDetail()?.items ?? []; track repository.repositoryId) {
+                          <li>
+                            <span class="split-repositories__name">{{ repository.name ?? ('#' + repository.repositoryId) }}</span>
+                            <span class="badge badge--plain">{{ repository.licenseSpdx ?? 'no licence recorded' }}</span>
+                            <span class="muted">{{ repository.triples }} triples</span>
+                          </li>
+                        }
+                        @if ((splitDetail()?.items ?? []).length === 0) {
+                          <li class="muted">No repositories in this split.</li>
+                        }
+                      </ul>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+      @if (pipelineStats().length > 0) {
+        <h3 class="section-heading">Pipeline events kept in this run</h3>
+        <ul class="stat-list">
+          @for (stat of pipelineStats(); track stat.key) {
+            <li>
+              <span>{{ statLabel(stat.key) }}</span>
+              <span class="mono">{{ stat.value }}</span>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    <!-- ── drill-down ─────────────────────────────────────────────────────── -->
+    @if (drill(); as current) {
+      <section class="card drill" aria-labelledby="drill-heading">
+        <div class="card__head">
+          <div>
+            <h2 id="drill-heading">Records · {{ current.label }}</h2>
+            <p class="card__subtitle">
+              The findings this aggregate was computed from, newest first. {{ drillTotal() }} match the filter; the
+              snapshot kept the most recent commits per repository.
+            </p>
+          </div>
+          <button type="button" class="button button--ghost" (click)="closeDrill()">Close</button>
+        </div>
+
+        @if (drillError()) {
+          <div class="notice notice--error" role="alert">{{ drillError() }}</div>
+        } @else if (drillLoading()) {
+          <p class="state" role="status">Loading records…</p>
+        } @else if (drillItems().length === 0) {
+          <p class="state">No records match this filter in the current snapshot.</p>
+        } @else {
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Rule</th>
+                  <th scope="col">Severity</th>
+                  <th scope="col">File</th>
+                  <th scope="col">Side</th>
+                  <th scope="col">Commit</th>
+                  <th scope="col">Observed</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (finding of drillItems(); track finding.id) {
+                  <tr>
+                    <td class="mono">{{ finding.ruleId }}</td>
+                    <td>
+                      @if (finding.severity) {
+                        <span class="badge" [class]="'badge badge--severity-' + finding.severity">{{ finding.severity }}</span>
+                      } @else {
+                        <span class="muted">—</span>
+                      }
+                    </td>
+                    <td>
+                      <span class="mono">{{ findingLocation(finding) }}</span>
+                      @if (selectedRepositoryId() === null) {
+                        <span class="muted"> · {{ repositoryNames().get(finding.repositoryId) ?? finding.repositoryId }}</span>
+                      }
+                    </td>
+                    <td>
+                      <span class="badge badge--plain">{{ finding.side }}</span>
+                    </td>
+                    <td class="mono">{{ finding.commitHash.substring(0, 7) }}</td>
+                    <td>{{ formatInstant(finding.occurredAt) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pager">
+            <button type="button" class="button button--ghost" [disabled]="drillPage() === 0" (click)="loadDrill(drillPage() - 1)">
+              Previous
+            </button>
+            <span>Page {{ drillPage() + 1 }}</span>
+            <button type="button" class="button button--ghost" [disabled]="!drillHasNext()" (click)="loadDrill(drillPage() + 1)">
+              Next
+            </button>
+          </div>
+        }
+      </section>
+    }
+  }
+}

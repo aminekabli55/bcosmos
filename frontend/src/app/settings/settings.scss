@@ -1,0 +1,218 @@
+/* ------------------------------------------------------------------ AI panel */
+
+.ai-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  transition: border-color 0.15s ease;
+  box-shadow: var(--shadow-xs);
+}
+
+.ai-panel--on {
+  border-left-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.ai-panel__text {
+  min-width: 0;
+  flex: 1 1 20rem;
+}
+
+.ai-panel__text h2 {
+  margin-bottom: 0.25rem;
+}
+
+.ai-panel__controls {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  flex-wrap: wrap;
+}
+
+.hint {
+  margin: 0.625rem 0 0;
+  font-size: 0.875rem;
+  color: var(--muted);
+  max-width: 60ch;
+  line-height: 1.5;
+}
+
+/* ------------------------------------------------------------------ Switch */
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.switch__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  margin: 0;
+  pointer-events: none;
+}
+
+.switch__track {
+  position: relative;
+  display: inline-block;
+  width: 2.75rem;
+  height: 1.5rem;
+  border-radius: 100px;
+  background: var(--border-strong);
+  transition: background 0.2s ease;
+  flex: none;
+}
+
+.switch--sm .switch__track {
+  width: 2.25rem;
+  height: 1.25rem;
+}
+
+.switch__knob {
+  position: absolute;
+  top: 0.1875rem;
+  left: 0.1875rem;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s ease;
+}
+
+.switch--sm .switch__knob {
+  width: 0.875rem;
+  height: 0.875rem;
+  top: 0.1875rem;
+  left: 0.1875rem;
+}
+
+.switch__input:checked + .switch__track {
+  background: var(--accent);
+}
+
+.switch__input:checked + .switch__track .switch__knob {
+  transform: translateX(1.25rem);
+}
+
+.switch--sm .switch__input:checked + .switch__track .switch__knob {
+  transform: translateX(1rem);
+}
+
+.switch__input:disabled + .switch__track {
+  opacity: 0.5;
+}
+
+.switch__input:focus-visible + .switch__track {
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+.switch__label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.switch__label--on {
+  color: var(--accent);
+}
+
+/* ------------------------------------------------------------------ Registry */
+
+.model-name {
+  font-weight: 600;
+}
+
+.model-notes {
+  display: block;
+  font-size: 0.875rem;
+}
+
+.price {
+  font-variant-numeric: tabular-nums;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ Editor */
+
+.editor-row td {
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.875rem;
+  padding: 0.375rem 0;
+}
+
+.editor .grow {
+  flex: 1;
+  min-width: 14rem;
+}
+
+.editor__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* ------------------------------------------------------------------ Provider editor */
+
+/* The "add provider" form sits above the table rather than inside a row of it. */
+.editor--new {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow-xs);
+}
+
+.editor--new .hint {
+  flex-basis: 100%;
+  margin-top: 0;
+}
+
+/* The one checkbox in the form: a row of tick + text instead of a stacked field. */
+.field--check {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--muted);
+  white-space: nowrap;
+  padding-bottom: 0.5rem;
+}
+
+.field--check input {
+  margin: 0;
+}
+

@@ -1,0 +1,368 @@
+@if (analysisId() === null) {
+  <section class="card">
+    <div class="empty-state">
+      <svg
+        viewBox="0 0 24 24"
+        width="34"
+        height="34"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z" />
+        <path d="M9 11.5l2 2 4-4" />
+      </svg>
+      <h1>Quality</h1>
+      <span>No analysis run selected.</span>
+      <span
+        >Open a run from <a routerLink="/repositories">Repositories</a> to see its findings.</span
+      >
+    </div>
+  </section>
+} @else {
+  <section class="quality-header">
+    <div class="quality-header__top">
+      <div class="breadcrumb">
+        <a routerLink="/repositories">Repositories</a>
+        <span aria-hidden="true">/</span>
+        <span>Run #{{ analysisId() }}</span>
+      </div>
+      <div class="quality-header__actions">
+        @if (!run() || !isTerminalStatus(run()!.status)) {
+          <span class="muted polling">polling…</span>
+        }
+        <button type="button" class="button button--ghost" (click)="reloadRun()">Refresh</button>
+      </div>
+    </div>
+    <p class="kicker">Run telemetry · evidence first</p>
+    <h1>Analysis run #{{ analysisId() }}</h1>
+    @if (run(); as run) {
+      <div class="quality-header__meta">
+        <span class="badge" [class]="'badge badge--run-' + run.status">{{ run.status }}</span>
+        <span class="stage">{{ run.stage }}</span>
+      </div>
+    }
+  </section>
+
+  @if (runLoading() && !run()) {
+    <p class="state">Loading run…</p>
+  } @else if (runError()) {
+    <p class="state state--error" role="alert">{{ runError() }}</p>
+  } @else if (run(); as run) {
+    <section class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-card__label">Status</div>
+        <div class="metric-card__value">
+          <span class="badge" [class]="'badge badge--run-' + run.status">{{ run.status }}</span>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-card__label">Stage</div>
+        <div class="metric-card__value">{{ run.stage }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-card__label">Files discovered</div>
+        <div class="metric-card__value metric-card__value--num">{{ run.filesDiscovered }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-card__label">Parsed</div>
+        <div class="metric-card__value metric-card__value--num">{{ run.filesParsed }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-card__label">Parse failures</div>
+        <div
+          class="metric-card__value metric-card__value--num"
+          [class.metric-card__value--danger]="run.filesFailed > 0"
+        >
+          {{ run.filesFailed }}
+        </div>
+      </div>
+      <div class="metric-card metric-card--highlight">
+        <div class="metric-card__label">Findings</div>
+        <div class="metric-card__value metric-card__value--num metric-card__value--large">
+          {{ run.findingsCount }}
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-card__label">Symbols</div>
+        <div class="metric-card__value metric-card__value--num">{{ run.symbolsCount }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-card__label">Started</div>
+        <div class="metric-card__value metric-card__value--mono">
+          {{ formatInstant(run.startedAt) }}
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-card__label">Finished</div>
+        <div class="metric-card__value metric-card__value--mono">
+          {{ formatInstant(run.finishedAt) }}
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-card__label">Parser</div>
+        <div class="metric-card__value metric-card__value--mono">
+          {{ run.parserVersion ?? '—' }}
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-card__label">Analyzer</div>
+        <div class="metric-card__value metric-card__value--mono">
+          {{ run.analyzerVersion ?? '—' }}
+        </div>
+      </div>
+    </section>
+
+    @if (run.errorSummary) {
+      <div class="notice notice--error" role="alert">
+        {{ run.errorCode }}: {{ run.errorSummary }}
+      </div>
+    }
+    @if (run.jobErrorSummary) {
+      <div class="notice notice--error" role="alert">job: {{ run.jobErrorSummary }}</div>
+    }
+  }
+
+  @if (failures().length > 0) {
+    <section class="failures-section">
+      <div class="failures-section__header">
+        <div>
+          <h2>Files that failed to parse ({{ failures().length }})</h2>
+          <p class="failures-section__subtitle">Counted in the run, never hidden.</p>
+        </div>
+      </div>
+
+      <div class="failures-table-container">
+        <table class="failures-table">
+          <thead>
+            <tr>
+              <th>File</th>
+              <th>Language</th>
+              <th>Lines</th>
+              <th>Error</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (failure of failures(); track failure.id) {
+              <tr>
+                <td class="mono">{{ failure.filePath }}</td>
+                <td>
+                  @if (failure.language) {
+                    <span
+                      class="badge"
+                      [class]="languageSupport(failure.language).badgeClass"
+                      [title]="languageSupport(failure.language).levelLabel"
+                    >
+                      {{ languageSupport(failure.language).name }} · L{{
+                        languageSupport(failure.language).level
+                      }}
+                    </span>
+                  } @else {
+                    <span class="muted">—</span>
+                  }
+                </td>
+                <td class="muted">{{ failure.lineCount }}</td>
+                <td>
+                  <div class="parse-error" [title]="failure.parseError ?? 'parse failed'">
+                    {{ failure.parseError ?? 'parse failed' }}
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+
+  <section class="findings-section">
+    <div class="findings-section__header">
+      <div>
+        <h2>Findings ({{ totalItems() }})</h2>
+        <p class="findings-section__subtitle">Select a row to read the code it was found in.</p>
+      </div>
+      <button type="button" class="button button--ghost" (click)="clearFilters()">
+        Clear filters
+      </button>
+    </div>
+
+    <div class="filter-bar">
+      <div class="filter-group">
+        <label for="filter-severity">Severity</label>
+        <select id="filter-severity" class="filter-select" (change)="onSeverityChange($event)">
+          <option value="" [selected]="severity() === ''">All</option>
+          @for (option of severities; track option) {
+            <option [value]="option" [selected]="option === severity()">{{ option }}</option>
+          }
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="filter-rule">Rule</label>
+        <input
+          id="filter-rule"
+          class="filter-input mono"
+          type="text"
+          list="rule-suggestions"
+          [value]="rule()"
+          (input)="onRuleInput($event)"
+          (change)="applyFilters()"
+          placeholder="EmptyCatchBlock"
+        />
+        <datalist id="rule-suggestions">
+          @for (suggestion of ruleSuggestions(); track suggestion) {
+            <option [value]="suggestion"></option>
+          }
+        </datalist>
+      </div>
+      <div class="filter-group">
+        <label for="filter-file">File</label>
+        <input
+          id="filter-file"
+          class="filter-input mono"
+          type="text"
+          [value]="file()"
+          (input)="onFileInput($event)"
+          (change)="applyFilters()"
+          placeholder="BookService.java"
+        />
+      </div>
+      <button type="button" class="button button--primary" (click)="applyFilters()">Apply</button>
+    </div>
+
+    @if (findingsError()) {
+      <div class="notice notice--error" role="alert">{{ findingsError() }}</div>
+    }
+
+    @if (findingsLoading() && findings().length === 0) {
+      <p class="state">Loading findings…</p>
+    } @else if (findings().length === 0) {
+      <div class="empty-state">
+        <svg
+          viewBox="0 0 24 24"
+          width="30"
+          height="30"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="11" cy="11" r="7" />
+          <path d="M20 20l-3.5-3.5" />
+        </svg>
+        <strong>No findings match these filters.</strong>
+      </div>
+    } @else {
+      <div class="findings-layout">
+        <div class="findings-list">
+          <div class="findings-table-container">
+            <table class="findings-table">
+              <thead>
+                <tr>
+                  <th>Severity</th>
+                  <th>Rule</th>
+                  <th>Message</th>
+                  <th>File</th>
+                  <th>Lines</th>
+                  <th>Symbol</th>
+                  <th>Triage</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (finding of findings(); track finding.id) {
+                  <tr
+                    class="findings-row"
+                    [class.findings-row--selected]="selected()?.id === finding.id"
+                    (click)="select(finding)"
+                    (keydown.enter)="select(finding)"
+                    tabindex="0"
+                  >
+                    <td>
+                      <span class="badge" [class]="'badge badge--severity-' + finding.severity">{{
+                        finding.severity
+                      }}</span>
+                    </td>
+                    <td class="mono">{{ finding.ruleId }}</td>
+                    <td class="cell-message">{{ finding.message ?? '—' }}</td>
+                    <td class="mono">{{ finding.filePath ?? '—' }}</td>
+                    <td class="muted">{{ finding.startLine }}–{{ finding.endLine }}</td>
+                    <td class="mono muted">{{ finding.symbolQualifiedName ?? '—' }}</td>
+                    <td class="muted">{{ finding.triageStatus }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pagination">
+            <button
+              type="button"
+              class="button button--ghost"
+              [disabled]="page() === 0"
+              (click)="previousPage()"
+            >
+              Previous
+            </button>
+            <span class="pagination__info"
+              >Page {{ page() + 1 }} of {{ totalPages() === 0 ? 1 : totalPages() }} ·
+              {{ totalItems() }} findings</span
+            >
+            <button
+              type="button"
+              class="button button--ghost"
+              [disabled]="page() + 1 >= totalPages()"
+              (click)="nextPage()"
+            >
+              Next
+            </button>
+            <label class="pagination__label" for="page-size">per page</label>
+            <select id="page-size" class="pagination__select" (change)="onSizeChange($event)">
+              @for (option of pageSizes; track option) {
+                <option [value]="option" [selected]="option === size()">{{ option }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        @if (selected(); as finding) {
+          <aside class="preview">
+            <div class="preview__head">
+              <h3>Evidence</h3>
+              <span class="badge" [class]="'badge badge--severity-' + finding.severity">{{
+                finding.severity
+              }}</span>
+            </div>
+            <p class="preview__file mono">{{ finding.filePath ?? '—' }}:{{ finding.startLine }}</p>
+            <p class="muted preview__meta">
+              {{ finding.ruleId }} · {{ finding.tool ?? 'tool' }} {{ finding.toolVersion ?? '' }} ·
+              normalized {{ finding.severity }} (was {{ finding.originalSeverity ?? '—' }})
+            </p>
+            <p class="muted mono fingerprint">fingerprint {{ finding.fingerprint }}</p>
+            <a
+              class="button button--ghost button--sm preview__ai"
+              [routerLink]="['/quality', analysisId(), 'findings', finding.id, 'review']"
+              >Ask AI for a fix</a
+            >
+            @if (preview(); as lines) {
+              <div class="source">
+                @for (line of lines; track line.number) {
+                  <div
+                    class="source__line"
+                    [class.source__line--first]="line.number === finding.startLine"
+                  >
+                    <span class="source__number">{{ line.number }}</span>
+                    <span class="source__text">{{ line.text }}</span>
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="state">No snippet stored with this finding.</p>
+            }
+          </aside>
+        }
+      </div>
+    }
+  </section>
+}

@@ -1,0 +1,226 @@
+<div class="cr-layout">
+  <!-- ── Left panel: commit picker ──────────────────────────────────── -->
+  <aside class="cr-sidebar">
+    <div class="cr-sidebar-header">
+      <h2 class="cr-sidebar-title">Commit Review</h2>
+      <p class="cr-sidebar-sub">Evidence-based 3-layer review</p>
+    </div>
+
+    <!-- Repository selector -->
+    <div class="cr-form-group">
+      <label class="cr-label" for="cr-repo-select">Repository</label>
+      <select
+        id="cr-repo-select"
+        class="cr-select"
+        [value]="selectedRepoId()"
+        (change)="onRepoChange($any($event.target).value)">
+        <option *ngFor="let r of repositories()" [value]="r.id">{{ r.name }}</option>
+      </select>
+    </div>
+
+    <!-- From commit -->
+    <div class="cr-form-group">
+      <label class="cr-label" for="cr-from-input">From commit</label>
+      <input
+        id="cr-from-input"
+        class="cr-input"
+        [value]="fromCommit()"
+        (input)="selectFromCommit($any($event.target).value)"
+        placeholder="base commit hash" />
+    </div>
+
+    <!-- To commit -->
+    <div class="cr-form-group">
+      <label class="cr-label" for="cr-to-input">To commit</label>
+      <input
+        id="cr-to-input"
+        class="cr-input"
+        [value]="toCommit()"
+        (input)="selectToCommit($any($event.target).value)"
+        placeholder="head commit hash" />
+    </div>
+
+    <!-- AI model selector -->
+    <div class="cr-form-group" *ngIf="enabledModels().length > 0">
+      <label class="cr-label" for="cr-model-select">AI model <span class="cr-badge-optional">optional</span></label>
+      <select
+        id="cr-model-select"
+        class="cr-select"
+        [(ngModel)]="$any(this).selectedModelId">
+        <option [ngValue]="null">None (facts + signals only)</option>
+        <option *ngFor="let m of enabledModels()" [ngValue]="m.id">{{ m.modelName }}</option>
+      </select>
+    </div>
+
+    <button
+      id="cr-run-review-btn"
+      class="cr-btn-primary"
+      [disabled]="!canRunReview || loading()"
+      (click)="runReview()">
+      <span *ngIf="!loading()">
+        <span class="cr-btn-icon">🔍</span> Run Review
+      </span>
+      <span *ngIf="loading()" class="cr-spinner-text">Analysing…</span>
+    </button>
+
+    <!-- Commit list -->
+    <div class="cr-commit-list" *ngIf="!loadingCommits() && commits().length > 0">
+      <div class="cr-commit-list-header">Recent commits</div>
+      <div
+        *ngFor="let c of commits()"
+        class="cr-commit-row"
+        [class.cr-commit-from]="c.hash === fromCommit()"
+        [class.cr-commit-to]="c.hash === toCommit()">
+        <div class="cr-commit-hashes">
+          <span class="cr-hash">{{ c.shortHash }}</span>
+          <span *ngIf="c.reviewId" class="cr-reviewed-badge" title="Review exists">✓</span>
+        </div>
+        <div class="cr-commit-msg" [title]="c.message">{{ c.message }}</div>
+        <div class="cr-commit-meta">{{ c.author }} · {{ formatInstant(c.committedAt) }}</div>
+        <div class="cr-commit-actions">
+          <button class="cr-btn-xs" (click)="selectFromCommit(c.hash)" title="Use as From">←F</button>
+          <button class="cr-btn-xs cr-btn-xs-to" (click)="selectToCommit(c.hash)" title="Use as To">→T</button>
+          <button *ngIf="c.reviewId" class="cr-btn-xs cr-btn-xs-view" (click)="loadExistingReview(c.reviewId!)" title="Load existing review">👁</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="cr-empty" *ngIf="loadingCommits()">Loading commits…</div>
+    <div class="cr-empty" *ngIf="!loadingCommits() && commits().length === 0">No commits found</div>
+  </aside>
+
+  <!-- ── Main content: review result ────────────────────────────────── -->
+  <main class="cr-main">
+    <!-- Loading spinner -->
+    <div class="cr-loading" *ngIf="loading()">
+      <div class="cr-spinner"></div>
+      <p>Running commit review…</p>
+    </div>
+
+    <!-- Error banner -->
+    <div class="cr-error" *ngIf="error() && !loading()">
+      <span class="cr-error-icon">⚠️</span>
+      {{ error() }}
+    </div>
+
+    <!-- Empty state -->
+    <div class="cr-empty-state" *ngIf="!review() && !loading() && !error()">
+      <div class="cr-empty-icon">🔎</div>
+      <h3>Select a commit range and run a review</h3>
+      <p>The review gives you deterministic facts and risk signals — optionally enriched with an AI summary.</p>
+    </div>
+
+    <!-- Review result -->
+    <div class="cr-review" *ngIf="review() as r">
+      <!-- Header -->
+      <div class="cr-review-header">
+        <div class="cr-review-title">
+          <span class="cr-hash-pill">{{ r.fromCommit.substring(0, 8) }}</span>
+          <span class="cr-arrow">→</span>
+          <span class="cr-hash-pill cr-hash-to">{{ r.toCommit.substring(0, 8) }}</span>
+        </div>
+        <div class="cr-review-meta">
+          <span *ngIf="r.aiModelName" class="cr-ai-badge">AI: {{ r.aiModelName }}</span>
+          <span class="cr-time">{{ formatInstant(r.createdAt) }}</span>
+        </div>
+      </div>
+
+      <!-- Layer 1: Facts -->
+      <section class="cr-section">
+        <h3 class="cr-section-title">
+          <span class="cr-layer-badge layer-1">L1</span> Facts
+          <span class="cr-section-subtitle">No AI involved — deterministic from diff and analysis runs</span>
+        </h3>
+        <div class="cr-facts-grid">
+          <div class="cr-fact-card">
+            <div class="cr-fact-value">{{ r.facts.filesChangedCount }}</div>
+            <div class="cr-fact-label">Files changed</div>
+          </div>
+          <div class="cr-fact-card cr-fact-new" [class.cr-fact-nonzero]="r.facts.newFindingsCount > 0">
+            <div class="cr-fact-value">{{ r.facts.newFindingsCount }}</div>
+            <div class="cr-fact-label">New findings</div>
+          </div>
+          <div class="cr-fact-card cr-fact-resolved">
+            <div class="cr-fact-value">{{ r.facts.resolvedFindingsCount }}</div>
+            <div class="cr-fact-label">Resolved</div>
+          </div>
+          <div class="cr-fact-card">
+            <div class="cr-fact-value">{{ r.facts.persistentFindingsCount }}</div>
+            <div class="cr-fact-label">Persistent</div>
+          </div>
+          <div class="cr-fact-card">
+            <div class="cr-fact-value">{{ r.facts.uncertainFindingsCount }}</div>
+            <div class="cr-fact-label">Uncertain</div>
+          </div>
+          <div class="cr-fact-card">
+            <div class="cr-fact-value">{{ r.facts.affectedDependentsCount }}</div>
+            <div class="cr-fact-label">Dependents affected</div>
+          </div>
+        </div>
+        <!-- Changed files list -->
+        <div class="cr-files" *ngIf="r.facts.filesChanged.length > 0">
+          <div class="cr-files-title">Changed files</div>
+          <div class="cr-file-chip" *ngFor="let f of r.facts.filesChanged">{{ f }}</div>
+        </div>
+      </section>
+
+      <!-- Layer 2: Risk Signals -->
+      <section class="cr-section">
+        <h3 class="cr-section-title">
+          <span class="cr-layer-badge layer-2">L2</span> Risk Signals
+          <span class="cr-section-subtitle">Explainable heuristics — each signal is labelled if approximate</span>
+        </h3>
+        <div class="cr-no-risks" *ngIf="sortedRisks().length === 0">
+          <span class="cr-check">✅</span> No risk signals detected
+        </div>
+        <div class="cr-risk-cards" *ngIf="sortedRisks().length > 0">
+          <div class="cr-risk-card" *ngFor="let sig of sortedRisks()" [ngClass]="riskSeverityClass[sig.severity]">
+            <div class="cr-risk-header">
+              <span class="cr-risk-sev-badge" [ngClass]="riskSeverityClass[sig.severity]">{{ sig.severity }}</span>
+              <span class="cr-risk-title">{{ sig.title }}</span>
+              <span *ngIf="sig.isHeuristic" class="cr-heuristic-tag" title="This signal uses a heuristic and may have false positives">~ heuristic</span>
+            </div>
+            <p class="cr-risk-desc">{{ sig.description }}</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Layer 3: AI Summary -->
+      <section class="cr-section" *ngIf="r.aiSummary || r.whatToCheck.length > 0 || r.testsToRun.length > 0">
+        <h3 class="cr-section-title">
+          <span class="cr-layer-badge layer-3">L3</span> AI Summary
+          <span class="cr-section-subtitle">Generated by {{ r.aiModelName }} — citations verified against diff</span>
+        </h3>
+
+        <div class="cr-ai-summary" *ngIf="r.aiSummary">
+          <pre class="cr-ai-text">{{ r.aiSummary }}</pre>
+        </div>
+
+        <!-- What to check -->
+        <div class="cr-what-check" *ngIf="r.whatToCheck.length > 0">
+          <div class="cr-subsection-title">What to check</div>
+          <div class="cr-check-item" *ngFor="let w of r.whatToCheck">
+            <div class="cr-check-loc">
+              <code>{{ w.file }}</code>
+              <span class="cr-line-ref">:{{ w.startLine }}<span *ngIf="w.endLine">–{{ w.endLine }}</span></span>
+            </div>
+            <p class="cr-check-desc">{{ w.description }}</p>
+          </div>
+        </div>
+
+        <!-- Tests to run -->
+        <div class="cr-tests" *ngIf="r.testsToRun.length > 0">
+          <div class="cr-subsection-title">Suggested tests to run</div>
+          <code class="cr-test-name" *ngFor="let t of r.testsToRun">{{ t }}</code>
+        </div>
+      </section>
+
+      <!-- No AI section available -->
+      <div class="cr-no-ai-hint"
+        *ngIf="!r.aiSummary && r.whatToCheck.length === 0 && r.testsToRun.length === 0">
+        <span class="cr-info-icon">ℹ️</span>
+        AI summary skipped — select a model to generate it.
+      </div>
+    </div>
+  </main>
+</div>

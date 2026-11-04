@@ -1,0 +1,668 @@
+<section class="card">
+  <div class="card__head">
+    <div>
+      <h1>Settings</h1>
+      <p class="card__subtitle">The AI layer, the providers it may reach, and the models registered on them.</p>
+    </div>
+  </div>
+
+  @if (aiError()) {
+    <div class="notice notice--error" role="alert">{{ aiError() }}</div>
+  }
+
+  @if (aiLoading() && !ai()) {
+    <p class="state">Loading the AI switch…</p>
+  } @else if (ai(); as settings) {
+    <div class="ai-panel" [class.ai-panel--on]="settings.enabled">
+      <div class="ai-panel__text">
+        <h2>AI layer {{ settings.enabled ? 'on' : 'off' }}</h2>
+        <p class="card__subtitle">
+          @if (settings.overridden) {
+            Set here and stored in the database
+            @if (settings.updatedAt) {
+              <span class="muted">· {{ formatInstant(settings.updatedAt) }}</span>
+            }
+          } @else {
+            Following the deployment default (<span class="mono">bcosmos.ai.enabled</span> = {{ settings.propertyDefault }})
+          }
+        </p>
+        <p class="hint">
+          When the layer is on, only the snippets a model needs are sent, and only to models you enable below
+          (spec §10). Turning it off leaves analysis and the registry fully usable.
+        </p>
+      </div>
+
+      <div class="ai-panel__controls">
+        <label class="switch">
+          <input
+            class="switch__input"
+            type="checkbox"
+            [checked]="settings.enabled"
+            [disabled]="aiSaving()"
+            (change)="onAiToggle($event)"
+          />
+          <span class="switch__track" aria-hidden="true"><span class="switch__knob"></span></span>
+          <span class="switch__label" [class.switch__label--on]="settings.enabled">
+            {{ settings.enabled ? 'On' : 'Off' }}
+          </span>
+        </label>
+
+        @if (settings.overridden) {
+          <button type="button" class="button button--ghost button--sm" [disabled]="aiSaving()"
+            (click)="useDeploymentDefault()">
+            Follow deployment default
+          </button>
+        }
+      </div>
+    </div>
+
+    @if (settings.enabled) {
+      <div class="notice notice--warn">
+        Code snippets leave this machine when a model runs. Every model below is opt-in, and secrets are redacted
+        before a prompt is built.
+      </div>
+    }
+  }
+</section>
+
+<section class="card">
+  <div class="card__head">
+    <div>
+      <h2>Providers</h2>
+      <p class="card__subtitle">
+        Every endpoint the gateway may call. DeepSeek, Claude, Ollama — adding one is a row here, never a
+        redeployment. A key pasted here is encrypted before it is stored and never sent back to this browser.
+      </p>
+    </div>
+    <div class="actions">
+      <button type="button" class="button button--ghost" (click)="loadProviders()">Refresh</button>
+      @if (!creatingProvider()) {
+        <button type="button" class="button" (click)="startCreateProvider()">Add provider</button>
+      }
+    </div>
+  </div>
+
+  @if (providersError()) {
+    <div class="notice notice--error" role="alert">{{ providersError() }}</div>
+  }
+
+  @if (creatingProvider() && providerDraft(); as draft) {
+    <div class="editor editor--new" aria-label="New provider">
+      <div class="field">
+        <label for="provider-code">Code</label>
+        <input
+          id="provider-code"
+          class="input mono"
+          type="text"
+          placeholder="deepseek"
+          [value]="draft.code"
+          (input)="onProviderDraftInput('code', $event)"
+        />
+      </div>
+      <div class="field">
+        <label for="provider-label">Label</label>
+        <input
+          id="provider-label"
+          class="input"
+          type="text"
+          placeholder="DeepSeek"
+          [value]="draft.label"
+          (input)="onProviderDraftInput('label', $event)"
+        />
+      </div>
+      <div class="field">
+        <label for="provider-protocol">Protocol</label>
+        <select
+          id="provider-protocol"
+          class="select"
+          [value]="draft.protocol"
+          (change)="onProviderDraftInput('protocol', $event)"
+        >
+          @for (protocol of protocols; track protocol) {
+            <option [value]="protocol">{{ protocol }}</option>
+          }
+        </select>
+      </div>
+      <div class="field grow">
+        <label for="provider-url">Base URL</label>
+        <input
+          id="provider-url"
+          class="input mono"
+          type="url"
+          placeholder="https://api.deepseek.com/v1"
+          [value]="draft.baseUrl"
+          (input)="onProviderDraftInput('baseUrl', $event)"
+        />
+      </div>
+      <div class="field">
+        <label for="provider-env">Key environment variable</label>
+        <input
+          id="provider-env"
+          class="input mono"
+          type="text"
+          placeholder="DEEPSEEK_API_KEY"
+          [value]="draft.apiKeyEnv"
+          (input)="onProviderDraftInput('apiKeyEnv', $event)"
+        />
+      </div>
+      <div class="field">
+        <label for="provider-key">API key</label>
+        <input
+          id="provider-key"
+          class="input mono"
+          type="password"
+          autocomplete="new-password"
+          placeholder="paste once, stored encrypted"
+          [value]="draft.apiKey"
+          (input)="onProviderDraftInput('apiKey', $event)"
+        />
+      </div>
+      <label class="field field--check">
+        <input
+          id="provider-required"
+          type="checkbox"
+          [checked]="draft.apiKeyRequired"
+          (change)="onProviderDraftInput('apiKeyRequired', $event)"
+        />
+        <span>key required</span>
+      </label>
+      <div class="editor__actions">
+        <button type="button" class="button" (click)="createProvider()">Add provider</button>
+        <button type="button" class="button button--ghost" (click)="cancelCreateProvider()">Cancel</button>
+      </div>
+      <p class="hint grow">
+        The protocol picks the adapter: <span class="mono">GEMINI</span> for Google, <span class="mono">OPENAI_COMPATIBLE</span>
+        for DeepSeek, Anthropic's compatibility layer, Groq, OpenRouter, Ollama or vLLM. Untick "key required" for a
+        local server that takes no credential.
+      </p>
+    </div>
+  }
+
+  @if (providersLoading() && providers().length === 0) {
+    <p class="state">Loading providers…</p>
+  } @else if (providers().length === 0) {
+    <div class="empty-state">
+      <strong>No providers registered</strong>
+      <span>Add one to point the gateway at any OpenAI-compatible endpoint.</span>
+    </div>
+  } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Provider</th>
+            <th>Endpoint</th>
+            <th>Credential</th>
+            <th>Models</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (provider of providers(); track provider.id) {
+            <tr>
+              <td>
+                <span class="model-name">{{ provider.label }}</span>
+                <span class="model-notes mono muted">{{ provider.code }}</span>
+              </td>
+              <td class="muted">
+                <span class="mono">{{ provider.protocol }}</span> · <span class="mono nowrap">{{ provider.baseUrl }}</span>
+              </td>
+              <td>
+                @if (credentialBadge(provider.credentialSource, provider.credentialHint, provider.credentialEnvironmentVariable); as badge) {
+                  <span [class]="badge.cls" [title]="provider.credentialEnvironmentVariable ?? ''">{{ badge.text }}</span>
+                }
+              </td>
+              <td class="num">{{ provider.modelCount }}</td>
+              <td class="actions">
+                @if (confirmingProviderId() === provider.id) {
+                  <span class="muted nowrap">
+                    @if (provider.modelCount > 0) {
+                      Still used by {{ provider.modelCount }} model(s) — detach them first.
+                    } @else {
+                      Delete {{ provider.code }}?
+                    }
+                    <button
+                      type="button"
+                      class="button button--ghost button--sm"
+                      [disabled]="providerBusyId() === provider.id"
+                      (click)="deleteProvider(provider)"
+                    >
+                      Delete
+                    </button>
+                    <button type="button" class="button button--ghost button--sm" (click)="cancelDeleteProvider()">
+                      Cancel
+                    </button>
+                  </span>
+                } @else {
+                  <button
+                    type="button"
+                    class="button button--ghost button--sm"
+                    [disabled]="providerBusyId() === provider.id"
+                    (click)="startEditProvider(provider)"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    class="button button--ghost button--sm"
+                    [disabled]="providerBusyId() === provider.id"
+                    (click)="confirmDeleteProvider(provider)"
+                  >
+                    Delete
+                  </button>
+                }
+              </td>
+            </tr>
+
+            @if (editingProviderId() === provider.id && providerEditDraft(); as draft) {
+              <tr class="editor-row">
+                <td colspan="5">
+                  <div class="editor" [attr.aria-label]="'Edit ' + provider.label">
+                    <div class="field">
+                      <label [attr.for]="'edit-label-' + provider.id">Label</label>
+                      <input
+                        [id]="'edit-label-' + provider.id"
+                        class="input"
+                        type="text"
+                        [value]="draft.label"
+                        (input)="onProviderEditInput('label', $event)"
+                      />
+                    </div>
+                    <div class="field">
+                      <label [attr.for]="'edit-protocol-' + provider.id">Protocol</label>
+                      <select
+                        [id]="'edit-protocol-' + provider.id"
+                        class="select"
+                        [value]="draft.protocol"
+                        (change)="onProviderEditInput('protocol', $event)"
+                      >
+                        @for (protocol of protocols; track protocol) {
+                          <option [value]="protocol">{{ protocol }}</option>
+                        }
+                      </select>
+                    </div>
+                    <div class="field grow">
+                      <label [attr.for]="'edit-url-' + provider.id">Base URL</label>
+                      <input
+                        [id]="'edit-url-' + provider.id"
+                        class="input mono"
+                        type="url"
+                        [value]="draft.baseUrl"
+                        (input)="onProviderEditInput('baseUrl', $event)"
+                      />
+                    </div>
+                    <div class="field">
+                      <label [attr.for]="'edit-env-' + provider.id">Key environment variable</label>
+                      <input
+                        [id]="'edit-env-' + provider.id"
+                        class="input mono"
+                        type="text"
+                        placeholder="none"
+                        [value]="draft.apiKeyEnv"
+                        (input)="onProviderEditInput('apiKeyEnv', $event)"
+                      />
+                    </div>
+                    <div class="field">
+                      <label [attr.for]="'edit-key-' + provider.id">New API key</label>
+                      <input
+                        [id]="'edit-key-' + provider.id"
+                        class="input mono"
+                        type="password"
+                        autocomplete="new-password"
+                        [placeholder]="provider.credentialHint ? 'keep ••••' + provider.credentialHint : 'paste a key'"
+                        [value]="draft.apiKey ?? ''"
+                        (input)="onProviderEditInput('apiKey', $event)"
+                      />
+                    </div>
+                    <label class="field field--check">
+                      <input
+                        type="checkbox"
+                        [checked]="draft.apiKeyRequired"
+                        (change)="onProviderEditInput('apiKeyRequired', $event)"
+                      />
+                      <span>key required</span>
+                    </label>
+                    <div class="editor__actions">
+                      <button
+                        type="button"
+                        class="button"
+                        [disabled]="providerBusyId() === provider.id"
+                        (click)="saveProviderEdit(provider)"
+                      >
+                        Save
+                      </button>
+                      <button type="button" class="button button--ghost" (click)="cancelEditProvider()">Cancel</button>
+                    </div>
+                    <p class="hint grow">
+                      The code <span class="mono">{{ provider.code }}</span> never changes: usage rows and logs name
+                      it, and it authenticates the stored key. Leave the key box empty to keep the current one.
+                    </p>
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
+
+<section class="card">
+  <div class="card__head">
+    <div>
+      <h2>Model registry</h2>
+      <p class="card__subtitle">Enable a model before it can be called, and choose the default.</p>
+    </div>
+    <div class="actions">
+      <button type="button" class="button button--ghost" (click)="loadModels()">Refresh</button>
+      @if (!creatingModel()) {
+        <button type="button" class="button" (click)="startCreateModel()">Add model</button>
+      }
+    </div>
+  </div>
+
+  @if (modelsError()) {
+    <div class="notice notice--error" role="alert">{{ modelsError() }}</div>
+  }
+
+  @if (creatingModel() && modelCreateDraft(); as draft) {
+    <div class="editor editor--new" aria-label="New model">
+      <div class="field">
+        <label for="new-model-provider">Provider</label>
+        <select
+          id="new-model-provider"
+          class="select"
+          [value]="draft.providerId"
+          (change)="onModelCreateInput('providerId', $event)"
+        >
+          @for (provider of providers(); track provider.id) {
+            <option [value]="provider.id">{{ provider.label }} ({{ provider.code }})</option>
+          }
+        </select>
+      </div>
+      <div class="field grow">
+        <label for="new-model-name">Model id</label>
+        <input
+          id="new-model-name"
+          class="input mono"
+          type="text"
+          placeholder="deepseek-chat"
+          [value]="draft.modelName"
+          (input)="onModelCreateInput('modelName', $event)"
+        />
+      </div>
+      <div class="field">
+        <label for="new-model-capability">Capability</label>
+        <select
+          id="new-model-capability"
+          class="select"
+          [value]="draft.capability"
+          (change)="onModelCreateInput('capability', $event)"
+        >
+          <option value="CHAT">CHAT</option>
+          <option value="EMBEDDING">EMBEDDING</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="new-model-kind">Kind</label>
+        <select
+          id="new-model-kind"
+          class="select"
+          [value]="draft.kind"
+          (change)="onModelCreateInput('kind', $event)"
+        >
+          <option value="HOSTED">HOSTED</option>
+          <option value="FINETUNED">FINETUNED</option>
+        </select>
+      </div>
+      @if (draft.capability === 'EMBEDDING') {
+        <div class="field">
+          <label for="new-model-dim">Vector width</label>
+          <input
+            id="new-model-dim"
+            class="input mono"
+            type="number"
+            min="1"
+            placeholder="1536"
+            [value]="draft.embeddingDimension"
+            (input)="onModelCreateInput('embeddingDimension', $event)"
+          />
+        </div>
+      }
+      <div class="field">
+        <label for="new-model-context">Context window</label>
+        <input
+          id="new-model-context"
+          class="input mono"
+          type="number"
+          min="1"
+          placeholder="default"
+          [value]="draft.contextWindow"
+          (input)="onModelCreateInput('contextWindow', $event)"
+        />
+      </div>
+      <div class="field">
+        <label for="new-model-in">Cost / 1k in</label>
+        <input
+          id="new-model-in"
+          class="input mono"
+          type="number"
+          min="0"
+          step="0.000001"
+          placeholder="0"
+          [value]="draft.costPer1kIn"
+          (input)="onModelCreateInput('costPer1kIn', $event)"
+        />
+      </div>
+      <div class="field">
+        <label for="new-model-out">Cost / 1k out</label>
+        <input
+          id="new-model-out"
+          class="input mono"
+          type="number"
+          min="0"
+          step="0.000001"
+          placeholder="0"
+          [value]="draft.costPer1kOut"
+          (input)="onModelCreateInput('costPer1kOut', $event)"
+        />
+      </div>
+      <div class="field grow">
+        <label for="new-model-notes">Notes</label>
+        <input
+          id="new-model-notes"
+          class="input"
+          type="text"
+          placeholder="optional"
+          [value]="draft.notes"
+          (input)="onModelCreateInput('notes', $event)"
+        />
+      </div>
+      <div class="editor__actions">
+        <button type="button" class="button" (click)="createModel()">Add model</button>
+        <button type="button" class="button button--ghost" (click)="cancelCreateModel()">Cancel</button>
+      </div>
+      <p class="hint grow">
+        The id is typed exactly as the provider spells it. A new row starts disabled: nothing is sent to it until
+        you enable it below.
+      </p>
+    </div>
+  }
+
+  @if (modelsLoading() && models().length === 0) {
+    <p class="state">Loading models…</p>
+  } @else if (models().length === 0) {
+    <div class="empty-state">
+      <strong>No models registered</strong>
+      <span>The registry is seeded by the backend changelog.</span>
+    </div>
+  } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>Provider</th>
+            <th>Cheapest</th>
+            <th>Credential</th>
+            <th>Enabled</th>
+            <th>Default</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (model of models(); track model.id) {
+            <tr [class.is-selected]="model.defaultModel">
+              <td>
+                <span class="model-name mono">{{ model.modelName }}</span>
+                @if (model.notes) {
+                  <span class="model-notes muted">{{ model.notes }}</span>
+                }
+              </td>
+              <td class="muted">
+                {{ model.providerLabel }} <span class="mono">( {{ model.provider }} )</span> · {{ model.kind }} ·
+                @if (model.capability === 'EMBEDDING') {
+                  <span class="badge badge--plain">embedding {{ model.embeddingDimension }}d</span>
+                } @else {
+                  <span class="badge badge--plain">chat</span>
+                }
+              </td>
+              <td class="muted nowrap">
+                <span class="price">{{ formatPrice(model.costPer1kIn) }}</span> in /
+                <span class="price">{{ formatPrice(model.costPer1kOut) }}</span> out
+                <span class="muted">· {{ model.contextWindow }} ctx</span>
+              </td>
+              <td>
+                @if (credentialBadge(model.credentialSource, model.credentialHint, model.credentialEnvironmentVariable); as badge) {
+                  <span [class]="badge.cls" [title]="model.credentialEnvironmentVariable ?? ''">{{ badge.text }}</span>
+                }
+              </td>
+              <td>
+                <label class="switch switch--sm">
+                  <input
+                    class="switch__input model-enabled"
+                    type="checkbox"
+                    [attr.aria-label]="'Enable ' + model.modelName"
+                    [checked]="model.enabled"
+                    [disabled]="modelBusyId() === model.id"
+                    (change)="onModelToggle(model, $event)"
+                  />
+                  <span class="switch__track" aria-hidden="true"><span class="switch__knob"></span></span>
+                </label>
+              </td>
+              <td>
+                @if (model.defaultModel) {
+                  <span class="badge badge--run-ANALYSED">default</span>
+                } @else {
+                  <button type="button" class="button button--ghost button--sm"
+                    [disabled]="modelBusyId() === model.id" (click)="makeDefault(model)">
+                    Make default
+                  </button>
+                }
+              </td>
+              <td class="actions">
+                @if (confirmingModelId() === model.id) {
+                  <span class="muted nowrap">
+                    Delete {{ model.modelName }}?
+                    <button
+                      type="button"
+                      class="button button--ghost button--sm"
+                      [disabled]="modelBusyId() === model.id"
+                      (click)="deleteModel(model)"
+                    >
+                      Delete
+                    </button>
+                    <button type="button" class="button button--ghost button--sm" (click)="cancelDeleteModel()">
+                      Cancel
+                    </button>
+                  </span>
+                } @else {
+                  <button type="button" class="button button--ghost button--sm" (click)="startEdit(model)">
+                    Edit
+                  </button>
+                  @if (!model.defaultModel) {
+                    <button
+                      type="button"
+                      class="button button--ghost button--sm"
+                      [disabled]="modelBusyId() === model.id"
+                      (click)="confirmDeleteModel(model)"
+                    >
+                      Delete
+                    </button>
+                  }
+                }
+              </td>
+            </tr>
+
+            @if (editingId() === model.id && draft(); as draft) {
+              <tr class="editor-row">
+                <td colspan="7">
+                  <div class="editor">
+                    <div class="field">
+                      <label [attr.for]="'context-' + model.id">Context window</label>
+                      <input
+                        [id]="'context-' + model.id"
+                        class="input mono"
+                        type="number"
+                        min="1"
+                        [value]="draft.contextWindow"
+                        (input)="onDraftInput('contextWindow', $event)"
+                      />
+                    </div>
+                    <div class="field">
+                      <label [attr.for]="'cost-in-' + model.id">Cost / 1k in</label>
+                      <input
+                        [id]="'cost-in-' + model.id"
+                        class="input mono"
+                        type="number"
+                        min="0"
+                        step="0.000001"
+                        [value]="draft.costPer1kIn"
+                        (input)="onDraftInput('costPer1kIn', $event)"
+                      />
+                    </div>
+                    <div class="field">
+                      <label [attr.for]="'cost-out-' + model.id">Cost / 1k out</label>
+                      <input
+                        [id]="'cost-out-' + model.id"
+                        class="input mono"
+                        type="number"
+                        min="0"
+                        step="0.000001"
+                        [value]="draft.costPer1kOut"
+                        (input)="onDraftInput('costPer1kOut', $event)"
+                      />
+                    </div>
+                    <div class="field grow">
+                      <label [attr.for]="'notes-' + model.id">Notes</label>
+                      <input
+                        [id]="'notes-' + model.id"
+                        class="input"
+                        type="text"
+                        [value]="draft.notes"
+                        (input)="onDraftInput('notes', $event)"
+                      />
+                    </div>
+                    <div class="editor__actions">
+                      <button type="button" class="button" [disabled]="modelBusyId() === model.id"
+                        (click)="saveEdit(model)">
+                        Save
+                      </button>
+                      <button type="button" class="button button--ghost" (click)="cancelEdit()">Cancel</button>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <p class="hint">
+      Prices are estimates per 1000 tokens and are what the cost column of a model call is based on. They are not
+      billing data.
+    </p>
+  }
+</section>

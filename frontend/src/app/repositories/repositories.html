@@ -1,0 +1,339 @@
+<section class="hero" aria-labelledby="hero-title">
+  <div class="hero__copy">
+    <p class="hero__eyebrow">
+      <span class="hero__signal" aria-hidden="true"></span>
+      Mission control · static analysis, never execution
+    </p>
+    <h1 id="hero-title" class="hero__title">
+      Chart the <span class="hero__accent">code cosmos</span>
+    </h1>
+    <p class="hero__lead">
+      Register a repository, launch a run and read its findings like a star map. Rules are facts, AI
+      is a proposal — nothing is ever built, executed or written back.
+    </p>
+
+    <div class="hero__stats">
+      <div class="hero__stat">
+        <span class="hero__stat-value">{{ repositories().length }}</span>
+        <span class="hero__stat-label">repositories in orbit</span>
+      </div>
+      <div class="hero__stat">
+        <span class="hero__stat-value">2</span>
+        <span class="hero__stat-label">languages mapped</span>
+      </div>
+      <div class="hero__stat">
+        <span class="hero__stat-value">0</span>
+        <span class="hero__stat-label">lines executed</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero__system" aria-hidden="true">
+    <span class="hero__star hero__star--a"></span>
+    <span class="hero__star hero__star--b"></span>
+    <span class="hero__star hero__star--c"></span>
+    <div class="hero__orbit hero__orbit--outer">
+      <span class="hero__satellite hero__satellite--gold"></span>
+    </div>
+    <div class="hero__orbit hero__orbit--inner">
+      <span class="hero__satellite hero__satellite--cyan"></span>
+    </div>
+    <div class="hero__planet">
+      <span class="hero__planet-glow"></span>
+      <span class="hero__planet-ring"></span>
+    </div>
+  </div>
+</section>
+
+<section class="card" id="register">
+  <div class="card__head">
+    <div>
+      <h2>Repositories</h2>
+      <p class="card__subtitle">
+        Register a local project, run an analysis, and follow its progress.
+      </p>
+    </div>
+    <button type="button" class="button button--ghost" (click)="loadRepositories()">Refresh</button>
+  </div>
+
+  <form class="register" (submit)="register($event)">
+    <div class="field">
+      <label for="repository-name">Name (optional)</label>
+      <input
+        id="repository-name"
+        class="input"
+        type="text"
+        [value]="name()"
+        (input)="onNameInput($event)"
+        placeholder="java-fixture"
+      />
+    </div>
+    <div class="field grow">
+      <label for="repository-path">Local path</label>
+      <input
+        id="repository-path"
+        class="input mono"
+        type="text"
+        [value]="localPath()"
+        (input)="onPathInput($event)"
+        placeholder="/path/to/repository"
+      />
+    </div>
+    <button type="submit" class="button" [disabled]="registering()">
+      {{ registering() ? 'Registering…' : 'Register' }}
+    </button>
+  </form>
+
+  <p class="hint">
+    An absolute path inside a directory the backend is allowed to read. Supported languages:
+    <span class="badge badge--lang-l3">Java · Level 3</span>
+    <span class="badge badge--lang-l2">TypeScript · Level 2</span>. BCosmos never builds or runs
+    anything in the repository.
+  </p>
+
+  @if (registerError()) {
+    <div class="notice notice--error" role="alert">{{ registerError() }}</div>
+  }
+  @if (registerNotice()) {
+    <div class="notice notice--ok">{{ registerNotice() }}</div>
+  }
+</section>
+
+<section class="card">
+  <div class="card__head">
+    <div>
+      <h2>Registered repositories</h2>
+      <p class="card__subtitle">Every mission in the observatory, newest first.</p>
+    </div>
+    @if (repositories().length > 0) {
+      <span class="count-chip">{{ repositories().length }} shown</span>
+    }
+  </div>
+
+  @if (deleteError()) {
+    <div class="notice notice--error" role="alert">{{ deleteError() }}</div>
+  }
+  @if (deleteNotice()) {
+    <div class="notice notice--ok">{{ deleteNotice() }}</div>
+  }
+
+  @if (loading()) {
+    <p class="state" role="status">Loading repositories…</p>
+  } @else if (error()) {
+    <p class="state state--error" role="alert">{{ error() }}</p>
+  } @else if (repositories().length === 0) {
+    <div class="empty-state">
+      <svg
+        viewBox="0 0 24 24"
+        width="34"
+        height="34"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M4 5.5A2 2 0 0 1 6 3.5h4l2 2h6a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+      </svg>
+      <strong>No repositories yet</strong>
+      <span>Register one above to start.</span>
+    </div>
+  } @else {
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Source</th>
+            <th>Language</th>
+            <th>Status</th>
+            <th>Registered</th>
+            <th class="col-actions"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (repository of repositories(); track repository.id) {
+            <tr [class.is-selected]="selected()?.id === repository.id">
+              <td>
+                <span class="repo-name">
+                  <span class="repo-avatar" aria-hidden="true">{{ initial(repository.name) }}</span>
+                  <span class="repo-name__text">{{ repository.name }}</span>
+                </span>
+              </td>
+              <td class="muted">{{ repository.sourceType }}</td>
+              <td>
+                @if (repository.primaryLanguage) {
+                  <span
+                    class="badge"
+                    [class]="languageSupport(repository.primaryLanguage).badgeClass"
+                    [title]="languageSupport(repository.primaryLanguage).levelLabel"
+                  >
+                    {{ languageSupport(repository.primaryLanguage).name }} · L{{
+                      languageSupport(repository.primaryLanguage).level
+                    }}
+                  </span>
+                } @else {
+                  <span class="muted">—</span>
+                }
+              </td>
+              <td>
+                <span class="badge" [class]="'badge badge--run-' + repository.status">{{
+                  repository.status
+                }}</span>
+              </td>
+              <td class="muted">{{ formatInstant(repository.createdAt) }}</td>
+              <td class="actions">
+                <button
+                  type="button"
+                  class="button button--sm"
+                  [disabled]="starting()"
+                  (click)="startAnalysis(repository)"
+                >
+                  Analyse
+                </button>
+                <button
+                  type="button"
+                  class="button button--ghost button--sm"
+                  (click)="select(repository)"
+                >
+                  Runs
+                </button>
+                @if (deleteCandidate()?.id !== repository.id) {
+                  <button
+                    type="button"
+                    class="button button--danger button--sm"
+                    [attr.aria-label]="'Delete ' + repository.name"
+                    (click)="requestDelete(repository)"
+                  >
+                    Delete
+                  </button>
+                }
+              </td>
+            </tr>
+            @if (deleteCandidate()?.id === repository.id) {
+              <tr class="confirm-row">
+                <td colspan="6">
+                  <p class="confirm-row__text">
+                    Remove <strong>{{ repository.name }}</strong> and every run, finding and symbol
+                    recorded for it? The folder on disk is not touched.
+                  </p>
+                  <div class="confirm-row__actions">
+                    <button
+                      type="button"
+                      class="button button--danger button--sm"
+                      [disabled]="deleting()"
+                      (click)="confirmDelete(repository)"
+                    >
+                      {{ deleting() ? 'Removing…' : 'Yes, remove it' }}
+                    </button>
+                    <button
+                      type="button"
+                      class="button button--ghost button--sm"
+                      [disabled]="deleting()"
+                      (click)="cancelDelete()"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
+
+@if (selected(); as repository) {
+  <section class="card">
+    <div class="card__head">
+      <div>
+        <h2>Analyses of {{ repository.name }}</h2>
+        <p class="card__subtitle">Every run of this repository, newest first.</p>
+      </div>
+      <button type="button" class="button button--ghost" (click)="select(repository)">
+        Refresh
+      </button>
+    </div>
+
+    @if (runsError()) {
+      <div class="notice notice--error" role="alert">{{ runsError() }}</div>
+    }
+
+    @if (runsLoading() && runs().length === 0) {
+      <p class="state">Loading runs…</p>
+    } @else if (runs().length === 0) {
+      <div class="empty-state">
+        <svg
+          viewBox="0 0 24 24"
+          width="30"
+          height="30"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" />
+        </svg>
+        <strong>No analysis yet</strong>
+        <span>Use <em>Analyse</em> to start one.</span>
+      </div>
+    } @else {
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Run</th>
+              <th>Status</th>
+              <th>Stage</th>
+              <th>Discovered</th>
+              <th>Parsed</th>
+              <th>Failed</th>
+              <th>Findings</th>
+              <th>Symbols</th>
+              <th>Started</th>
+              <th class="col-actions"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (run of runs(); track run.id) {
+              <tr>
+                <td class="mono">#{{ run.id }}</td>
+                <td>
+                  <span class="badge" [class]="'badge badge--run-' + run.status">{{
+                    run.status
+                  }}</span>
+                  @if (!isTerminalStatus(run.status)) {
+                    <span class="muted"> · polling</span>
+                  }
+                </td>
+                <td class="muted">{{ run.stage }}</td>
+                <td class="num">{{ run.filesDiscovered }}</td>
+                <td class="num">{{ run.filesParsed }}</td>
+                <td class="num" [class.muted]="run.filesFailed === 0">{{ run.filesFailed }}</td>
+                <td class="num find-count">{{ run.findingsCount }}</td>
+                <td class="num">{{ run.symbolsCount }}</td>
+                <td class="muted">{{ formatInstant(run.startedAt) }}</td>
+                <td class="actions">
+                  <a class="button button--ghost button--sm" [routerLink]="['/quality', run.id]"
+                    >Findings</a
+                  >
+                </td>
+              </tr>
+              @if (run.errorSummary) {
+                <tr class="error-row">
+                  <td colspan="10" class="state state--error">
+                    {{ run.errorCode }}: {{ run.errorSummary }}
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+}

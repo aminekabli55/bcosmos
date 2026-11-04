@@ -1,0 +1,262 @@
+<div class="history-page">
+  <!-- Header -->
+  <header class="history-header">
+    <div class="title-group">
+      <h1 class="page-title">
+        <svg class="history-glyph" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="8.5" />
+          <path d="M12 7.5V12l3 1.8" />
+          <path d="M3.5 12h1.6M18.9 12h1.6" opacity="0.5" />
+        </svg>
+        Snapshot History &amp; Deltas
+      </h1>
+      <p class="page-subtitle">Track quality evolution, verified fixes, regressions, and transition safeguards across commits</p>
+    </div>
+
+    <div class="repo-selector-box">
+      <label for="history-repo-select">Repository:</label>
+      <select
+        id="history-repo-select"
+        class="input-select"
+        [ngModel]="selectedRepoId()"
+        (ngModelChange)="onRepoChange($event)"
+      >
+        <option *ngFor="let repo of repositories()" [value]="repo.id">
+          {{ repo.name }} ({{ repo.primaryLanguage || 'generic' }})
+        </option>
+      </select>
+    </div>
+  </header>
+
+  <!-- Snapshot Comparison Bar -->
+  <section class="compare-toolbar" aria-label="Snapshot run selection">
+    <div class="run-picker">
+      <div class="picker-field">
+        <label for="from-run">Baseline Snapshot (From):</label>
+        <select
+          id="from-run"
+          class="picker-select"
+          [ngModel]="fromRunId()"
+          (ngModelChange)="fromRunId.set($event)"
+        >
+          <option *ngFor="let run of analyses()" [value]="run.id">
+            #{{ run.id }} — {{ run.commitHash ? (run.commitHash | slice: 0 : 7) : 'head' }} ({{ formatInstant(run.createdAt) }})
+          </option>
+        </select>
+      </div>
+
+      <div class="arrow-divider" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="5" y1="12" x2="19" y2="12" />
+          <polyline points="12 5 19 12 12 19" />
+        </svg>
+      </div>
+
+      <div class="picker-field">
+        <label for="to-run">Target Snapshot (To):</label>
+        <select
+          id="to-run"
+          class="picker-select"
+          [ngModel]="toRunId()"
+          (ngModelChange)="toRunId.set($event)"
+        >
+          <option *ngFor="let run of analyses()" [value]="run.id">
+            #{{ run.id }} — {{ run.commitHash ? (run.commitHash | slice: 0 : 7) : 'head' }} ({{ formatInstant(run.createdAt) }})
+          </option>
+        </select>
+      </div>
+    </div>
+
+    <button
+      type="button"
+      class="btn-compare"
+      [disabled]="loading() || !fromRunId() || !toRunId()"
+      (click)="compare()"
+    >
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="8" />
+        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      </svg>
+      {{ loading() ? 'Comparing...' : 'Compare Snapshots' }}
+    </button>
+  </section>
+
+  <!-- Error / Loading -->
+  <div class="alert-banner alert-banner--error" *ngIf="error()">
+    <span>{{ error() }}</span>
+  </div>
+
+  <div class="loading-state" *ngIf="loading()">
+    <div class="spinner" aria-hidden="true"></div>
+    <p>Calculating finding transitions and parser invariants between snapshots...</p>
+  </div>
+
+  <!-- Comparison Results -->
+  <div class="history-content" *ngIf="!loading() && comparison() as comp">
+    
+    <!-- STAT CARDS -->
+    <section class="stat-cards-grid" aria-label="Transition summary metrics">
+      
+      <!-- NEW -->
+      <article class="stat-card stat-card--new" (click)="setTab('NEW')" [class.active]="selectedTab() === 'NEW'">
+        <div class="stat-header">
+          <span class="stat-title">New Findings</span>
+          <span class="stat-icon" aria-hidden="true">🚨</span>
+        </div>
+        <div class="stat-value">{{ comp.newCount }}</div>
+        <p class="stat-desc">Issues introduced in target snapshot</p>
+      </article>
+
+      <!-- RESOLVED -->
+      <article class="stat-card stat-card--resolved" (click)="setTab('RESOLVED')" [class.active]="selectedTab() === 'RESOLVED'">
+        <div class="stat-header">
+          <span class="stat-title">Resolved</span>
+          <span class="stat-icon" aria-hidden="true">✅</span>
+        </div>
+        <div class="stat-value">{{ comp.resolvedCount }}</div>
+        <p class="stat-desc">Findings eliminated in target commit</p>
+      </article>
+
+      <!-- PERSISTENT -->
+      <article class="stat-card stat-card--persistent" (click)="setTab('PERSISTENT')" [class.active]="selectedTab() === 'PERSISTENT'">
+        <div class="stat-header">
+          <span class="stat-title">Persistent</span>
+          <span class="stat-icon" aria-hidden="true">🔁</span>
+        </div>
+        <div class="stat-value">{{ comp.persistentCount }}</div>
+        <p class="stat-desc">Unresolved issues in both snapshots</p>
+      </article>
+
+      <!-- UNCERTAIN -->
+      <article class="stat-card stat-card--uncertain" (click)="setTab('UNCERTAIN')" [class.active]="selectedTab() === 'UNCERTAIN'">
+        <div class="stat-header">
+          <span class="stat-title">Uncertain (Safeguard)</span>
+          <span class="stat-icon" aria-hidden="true">⚠️</span>
+        </div>
+        <div class="stat-value">{{ comp.uncertainCount }}</div>
+        <p class="stat-desc">File parse failure or rule disabled (spec §4.2)</p>
+      </article>
+
+    </section>
+
+    <!-- TRANSITIONS SECTION -->
+    <section class="transitions-section">
+      <div class="section-toolbar">
+        <!-- Tabs -->
+        <div class="tab-group" role="tablist" aria-label="Filter transitions">
+          <button
+            type="button"
+            class="tab-btn"
+            [class.active]="selectedTab() === 'ALL'"
+            (click)="setTab('ALL')"
+            role="tab"
+          >
+            All Transitions ({{ comp.transitions.length }})
+          </button>
+          <button
+            type="button"
+            class="tab-btn tab-btn--new"
+            [class.active]="selectedTab() === 'NEW'"
+            (click)="setTab('NEW')"
+            role="tab"
+          >
+            New ({{ comp.newCount }})
+          </button>
+          <button
+            type="button"
+            class="tab-btn tab-btn--resolved"
+            [class.active]="selectedTab() === 'RESOLVED'"
+            (click)="setTab('RESOLVED')"
+            role="tab"
+          >
+            Resolved ({{ comp.resolvedCount }})
+          </button>
+          <button
+            type="button"
+            class="tab-btn tab-btn--persistent"
+            [class.active]="selectedTab() === 'PERSISTENT'"
+            (click)="setTab('PERSISTENT')"
+            role="tab"
+          >
+            Persistent ({{ comp.persistentCount }})
+          </button>
+          <button
+            type="button"
+            class="tab-btn tab-btn--uncertain"
+            [class.active]="selectedTab() === 'UNCERTAIN'"
+            (click)="setTab('UNCERTAIN')"
+            role="tab"
+          >
+            Uncertain ({{ comp.uncertainCount }})
+          </button>
+        </div>
+
+        <!-- Search -->
+        <div class="search-input-box">
+          <input
+            type="search"
+            class="search-input"
+            placeholder="Search rule ID, file path, or reason..."
+            [(ngModel)]="searchQuery"
+          />
+        </div>
+      </div>
+
+      <!-- Transitions Table -->
+      <div class="table-card">
+        <table class="transitions-table" aria-label="Snapshot finding transitions">
+          <thead>
+            <tr>
+              <th scope="col">Transition</th>
+              <th scope="col">Confidence</th>
+              <th scope="col">Rule ID</th>
+              <th scope="col">File Path</th>
+              <th scope="col">Reason &amp; Safeguard Explanation</th>
+              <th scope="col" class="action-col">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of filteredTransitions()">
+              <td>
+                <span class="transition-pill" [attr.data-type]="item.type">
+                  <span class="pill-dot"></span>
+                  {{ item.type }}
+                </span>
+              </td>
+              <td>
+                <span class="conf-pill">{{ formatConfidence(item.confidence) }}</span>
+              </td>
+              <td>
+                <strong class="rule-id">{{ item.ruleId }}</strong>
+              </td>
+              <td>
+                <span class="file-path">{{ item.filePath }}</span>
+              </td>
+              <td>
+                <span class="reason-text">{{ item.reason }}</span>
+              </td>
+              <td class="action-col">
+                <a
+                  *ngIf="item.toFindingId"
+                  [routerLink]="['/quality', comp.toRun.id]"
+                  [queryParams]="{ file: item.filePath, rule: item.ruleId }"
+                  class="btn-inspect-link"
+                >
+                  View Finding →
+                </a>
+              </td>
+            </tr>
+
+            <tr *ngIf="filteredTransitions().length === 0">
+              <td colspan="6" class="empty-state">
+                No finding transitions match the selected filter.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </section>
+
+  </div>
+</div>

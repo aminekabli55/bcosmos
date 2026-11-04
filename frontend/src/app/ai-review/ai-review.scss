@@ -1,0 +1,282 @@
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.breadcrumb a {
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+.head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.finding-message {
+  margin: 0 0 0.6rem;
+  font-weight: 500;
+}
+
+/* ------------------------------------------------------------------ Snippets */
+
+.snippet {
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  white-space: pre;
+  line-height: 1.55;
+}
+
+/* ------------------------------------------------------------------ Ask row */
+
+.ask {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 0.75rem;
+}
+
+.history {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.button--ghost.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* ------------------------------------------------------------------ Verdict */
+
+.review__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.review__answer h3,
+.review__verdict h3 {
+  margin: 1rem 0 0.4rem;
+}
+
+.review__answer h3:first-child,
+.review__verdict h3:first-child {
+  margin-top: 0;
+}
+
+.review__summary {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 500;
+}
+
+.review__answer p {
+  margin: 0.35rem 0 0;
+}
+
+.review__answer ul,
+.review__verdict ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.checks {
+  list-style: none;
+  padding-left: 0;
+  margin: 0.4rem 0 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.check {
+  display: grid;
+  grid-template-columns: auto minmax(6rem, auto) auto 1fr;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  font-size: 0.82rem;
+}
+
+.check__mark {
+  font-weight: 700;
+}
+
+.check__label {
+  font-weight: 600;
+}
+
+.check__result {
+  font-variant: small-caps;
+  letter-spacing: 0.03em;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.check__hint {
+  font-size: 0.76rem;
+}
+
+.check--ok {
+  background: var(--ok-soft);
+  border-color: color-mix(in srgb, var(--ok) 28%, white);
+  color: var(--ok);
+}
+
+.check--failed {
+  background: var(--danger-soft);
+  border-color: color-mix(in srgb, var(--danger) 30%, white);
+  color: var(--danger);
+}
+
+/* The hint stays neutral even when the check failed: it explains, it does not alarm. */
+.check--ok .check__hint,
+.check--failed .check__hint {
+  color: var(--muted);
+}
+
+.notes {
+  list-style: none;
+  padding-left: 0;
+  margin: 0.35rem 0 0;
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+}
+
+/* ------------------------------------------------------------------ Diff */
+
+.diff {
+  margin: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  background: var(--surface);
+}
+
+.diff__line {
+  display: block;
+  padding: 0 0.7rem;
+  white-space: pre;
+}
+
+.diff__line--added {
+  background: var(--ok-soft);
+  color: #86efac;
+}
+
+.diff__line--removed {
+  background: var(--danger-soft);
+  color: #ffb3c0;
+}
+
+.diff__line--hunk {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.diff__line--context {
+  color: var(--muted);
+}
+
+/* ------------------------------------------------------------------ Evidence */
+
+.evidence {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 0.6rem;
+  background: var(--surface-2);
+}
+
+.evidence > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.evidence > summary::marker {
+  color: var(--muted);
+}
+
+.evidence .snippet {
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--surface);
+}
+
+.badge--kind-enclosing {
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 30%, white);
+}
+
+.badge--kind-similar {
+  color: var(--muted);
+  background: var(--surface);
+}
+
+/* ------------------------------------------------------------------ Suggestion status */
+
+.badge--suggestion-PROPOSED {
+  color: var(--sev-medium);
+  background: var(--warn-soft);
+  border-color: var(--warn-border);
+}
+
+.badge--suggestion-ACCEPTED {
+  color: var(--ok);
+  background: var(--ok-soft);
+  border-color: color-mix(in srgb, var(--ok) 35%, white);
+}
+
+.badge--suggestion-REJECTED {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-color: color-mix(in srgb, var(--danger) 30%, white);
+}
+
+.badge--suggestion-DEFERRED {
+  color: var(--muted);
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+
+@media (max-width: 1000px) {
+  .review__grid {
+    grid-template-columns: 1fr;
+  }
+}

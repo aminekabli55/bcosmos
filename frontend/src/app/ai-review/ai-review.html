@@ -1,0 +1,306 @@
+@if (findingId() === null) {
+  <section class="card">
+    <div class="empty-state">
+      <h1>AI Review</h1>
+      <span>No finding selected.</span>
+      <span>Open a finding from <a routerLink="/repositories">Repositories</a> to ask for a fix.</span>
+    </div>
+  </section>
+} @else {
+  <section class="card">
+    <div class="card__head">
+      <div>
+        <p class="breadcrumb">
+          <a routerLink="/repositories">Repositories</a>
+          <span aria-hidden="true">/</span>
+          @if (analysisId() !== null) {
+            <a [routerLink]="['/quality', analysisId()]">Run #{{ analysisId() }}</a>
+            <span aria-hidden="true">/</span>
+          }
+          <span>Finding #{{ findingId() }}</span>
+        </p>
+        <h1>AI Review</h1>
+        @if (finding(); as finding) {
+          <p class="card__subtitle">
+            <span class="badge" [class]="'badge badge--severity-' + finding.severity">{{ finding.severity }}</span>
+            <span class="mono">{{ finding.ruleId }}</span>
+            <span class="muted">{{ finding.filePath ?? '—' }}:{{ finding.startLine }}</span>
+            <span class="badge" [class]="'badge badge--run-' + (finding.triageStatus === 'OPEN' ? 'PENDING' : 'SUCCEEDED')">
+              triage {{ finding.triageStatus }}
+            </span>
+          </p>
+        }
+      </div>
+      <div class="head-actions">
+        <span class="muted">a suggestion is a proposal: nothing is applied to the repository</span>
+      </div>
+    </div>
+
+    @if (loading() && !finding()) {
+      <p class="state">Loading finding…</p>
+    } @else if (findingError()) {
+      <p class="state state--error" role="alert">{{ findingError() }}</p>
+    } @else if (finding(); as finding) {
+      <p class="finding-message">{{ finding.message }}</p>
+      @if (finding.snippet) {
+        <pre class="snippet mono">{{ finding.snippet }}</pre>
+      }
+    }
+  </section>
+
+  <section class="card">
+    <div class="card__head">
+      <div>
+        <h2>Ask a model</h2>
+        <p class="card__subtitle">
+          Evidence is retrieved first, then the answer is validated: the diff is applied in memory, the file is
+          re-parsed and the rule analysis is re-run.
+        </p>
+      </div>
+    </div>
+
+    <div class="ask">
+      <label class="field">
+        <span>Chat model</span>
+        <select class="select" [value]="modelId() ?? ''" (change)="onModelChange($event)">
+          <option value="">choose a model…</option>
+          @for (model of chatModels(); track model.id) {
+            <option [value]="model.id">{{ model.provider }}/{{ model.modelName }}</option>
+          }
+        </select>
+      </label>
+      <label class="field">
+        <span>Embedding model</span>
+        <select class="select" [value]="embeddingModelId() ?? ''" (change)="onEmbeddingModelChange($event)">
+          <option value="">choose a model…</option>
+          @for (model of embeddingModels(); track model.id) {
+            <option [value]="model.id">
+              {{ model.provider }}/{{ model.modelName }} ({{ model.embeddingDimension }}d)
+            </option>
+          }
+        </select>
+      </label>
+      <button type="button" class="button"
+              [disabled]="requesting() || modelId() === null || embeddingModelId() === null"
+              (click)="requestSuggestion()">
+        {{ requesting() ? 'Asking…' : 'Suggest a fix' }}
+      </button>
+    </div>
+
+    @if (chatModels().length === 0) {
+      <p class="state">No chat model is enabled. Enable one in <a routerLink="/settings">Settings</a> first.</p>
+    }
+    @if (embeddingModels().length === 0) {
+      <p class="state">No embedding model is enabled. Retrieval needs one; enable it in
+        <a routerLink="/settings">Settings</a> first.</p>
+    }
+    @if (requesting()) {
+      <p class="state">Indexing the run and waiting for the model… this can take a while on the first call.</p>
+    }
+    @if (requestError()) {
+      <div class="notice notice--error" role="alert">{{ requestError() }}</div>
+    }
+
+    @if (suggestions().length > 0) {
+      <div class="history">
+        <span class="muted">Suggestions on this finding:</span>
+        @for (item of suggestions(); track item.id) {
+          <button
+            type="button"
+            class="button button--ghost button--sm"
+            [class.is-selected]="selected()?.id === item.id"
+            (click)="show(item)"
+          >
+            #{{ item.id }} {{ item.modelLabel }} — {{ item.status }}
+          </button>
+        }
+      </div>
+    }
+  </section>
+
+  @if (selected(); as suggestion) {
+    <section class="card review">
+      <div class="card__head">
+        <div>
+          <h2>Suggestion #{{ suggestion.id }}</h2>
+          <p class="card__subtitle">
+            <span class="badge" [class]="'badge badge--suggestion-' + suggestion.status">{{ suggestion.status }}</span>
+            <span class="mono">{{ suggestion.modelLabel ?? 'model removed from the registry' }}</span>
+            <span class="muted">prompt {{ suggestion.promptVersion }}</span>
+            <span class="muted">{{ formatInstant(suggestion.createdAt) }}</span>
+            <span class="muted">{{ suggestion.latencyMs }} ms · {{ suggestion.tokensIn }} in / {{ suggestion.tokensOut }} out tokens</span>
+          </p>
+        </div>
+        <div class="head-actions">
+          @for (status of statuses; track status) {
+            <button type="button" class="button button--ghost button--sm" [disabled]="reviewing()" (click)="review(status)">
+              {{ status === 'ACCEPTED' ? 'Accept' : status === 'REJECTED' ? 'Reject' : 'Defer' }}
+            </button>
+          }
+        </div>
+      </div>
+
+      @if (reviewError()) {
+        <div class="notice notice--error" role="alert">{{ reviewError() }}</div>
+      }
+      @if (suggestion.reviewedAt) {
+        <div class="notice notice--ok">Reviewed {{ formatInstant(suggestion.reviewedAt) }}.</div>
+      }
+
+      <div class="review__grid">
+        <div class="review__answer">
+          <h3>Summary</h3>
+          <p class="review__summary">{{ suggestion.answer.summary ?? '—' }}</p>
+
+          <h3>Explanation</h3>
+          <p>{{ suggestion.answer.problemExplanation ?? '—' }}</p>
+
+          @if (suggestion.answer.citations.length > 0) {
+            <h3>Cited evidence</h3>
+            <ul class="citations">
+              @for (citation of suggestion.answer.citations; track citation.file + citation.startLine) {
+                <li>
+                  <span class="mono">{{ citation.file }}:{{ formatRange(citation.startLine, citation.endLine) }}</span>
+                  @if (citation.why) {
+                    <span class="muted"> — {{ citation.why }}</span>
+                  }
+                </li>
+              }
+            </ul>
+          }
+
+          @if (suggestion.answer.risks.length > 0) {
+            <h3>Risks</h3>
+            <ul>
+              @for (risk of suggestion.answer.risks; track risk) {
+                <li>{{ risk }}</li>
+              }
+            </ul>
+          }
+          @if (suggestion.answer.testsToRun.length > 0) {
+            <h3>Tests to run</h3>
+            <ul>
+              @for (test of suggestion.answer.testsToRun; track test) {
+                <li class="mono">{{ test }}</li>
+              }
+            </ul>
+          }
+          @if (suggestion.answer.uncertainties.length > 0) {
+            <h3>Uncertainties</h3>
+            <ul>
+              @for (uncertainty of suggestion.answer.uncertainties; track uncertainty) {
+                <li>{{ uncertainty }}</li>
+              }
+            </ul>
+          }
+        </div>
+
+        <div class="review__verdict">
+          <h3>Validation verdict</h3>
+          <p class="card__subtitle">
+            Computed by BCosmos, not by the model. Every check is a fact about the patch, not a vote.
+          </p>
+          <ul class="checks">
+            @for (check of checks(); track check.label) {
+              <li [class]="check.ok ? 'check check--ok' : 'check check--failed'">
+                <span class="check__mark" aria-hidden="true">{{ check.ok ? '✓' : '✕' }}</span>
+                <span class="check__label">{{ check.label }}</span>
+                <span class="check__result">{{ check.ok ? 'passed' : 'failed' }}</span>
+                <span class="check__hint muted">{{ check.hint }}</span>
+              </li>
+            }
+          </ul>
+
+          @if (suggestion.verdict.newFindings.length > 0) {
+            <h3>New findings the patch would introduce</h3>
+            <ul>
+              @for (finding of suggestion.verdict.newFindings; track finding.ruleId + finding.startLine) {
+                <li>
+                  <span class="badge badge--severity-HIGH">{{ finding.ruleId }}</span>
+                  <span class="mono">line {{ finding.startLine }}</span>
+                  <span class="muted">{{ finding.message }}</span>
+                </li>
+              }
+            </ul>
+          }
+
+          <h3>What was not checked</h3>
+          <ul class="notes">
+            @for (note of suggestion.verdict.notes; track note) {
+              <li class="muted">{{ note }}</li>
+            }
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card__head">
+        <div>
+          <h2>Proposed diff</h2>
+          <p class="card__subtitle">Applied in memory only, to the revision that was analysed.</p>
+        </div>
+      </div>
+      @if (diffLines().length === 0) {
+        <p class="state">The model proposed no diff for this finding.</p>
+      } @else {
+        <pre class="diff mono">@for (line of diffLines(); track $index) {<span [class]="'diff__line diff__line--' + line.kind">{{ line.text }}
+</span>}</pre>
+      }
+    </section>
+
+    <section class="card">
+      <div class="card__head">
+        <div>
+          <h2>Evidence the model was shown ({{ suggestion.retrieval.items.length }})</h2>
+          <p class="card__subtitle">
+            {{ suggestion.retrieval.estimatedTokens }} estimated tokens, {{ suggestion.retrieval.chunksConsidered }}
+            chunks in the run, index {{ suggestion.retrieval.index.reused ? 'reused' : 'built' }}
+            ({{ suggestion.retrieval.index.chunks }} chunks via {{ suggestion.retrieval.embedModel }}).
+          </p>
+        </div>
+      </div>
+
+      @if (suggestion.retrieval.truncated) {
+        <div class="notice notice--error">The bundle was cut at the token budget; the model did not see everything.</div>
+      }
+      @if (suggestion.retrieval.index.symbolsWithoutSource > 0) {
+        <div class="notice">
+          {{ suggestion.retrieval.index.symbolsWithoutSource }} symbol(s) of this run have no stored source and could
+          not be chunked.
+        </div>
+      }
+      <ul class="notes">
+        @for (note of suggestion.retrieval.notes; track note) {
+          <li class="muted">{{ note }}</li>
+        }
+      </ul>
+
+      @for (item of suggestion.retrieval.items; track item.file + item.startLine + item.kind) {
+        <details class="evidence" [open]="item.kind === 'ENCLOSING'">
+          <summary>
+            <span class="badge" [class]="item.kind === 'ENCLOSING' ? 'badge--kind-enclosing' : 'badge--kind-similar'">
+              {{ item.kind === 'ENCLOSING' ? 'enclosing declaration' : 'similar chunk' }}
+            </span>
+            <span class="mono">{{ item.file }}:{{ item.startLine }}-{{ item.endLine }}</span>
+            <span class="muted">{{ item.qualifiedName }}</span>
+            @if (item.similarity !== null) {
+              <span class="muted">similarity {{ item.similarity.toFixed(3) }}</span>
+            }
+          </summary>
+          <pre class="snippet mono">{{ item.text }}</pre>
+        </details>
+      }
+      @if (suggestion.retrieval.items.length === 0) {
+        <p class="state">Retrieval produced no evidence for this finding.</p>
+      }
+    </section>
+  } @else {
+    <section class="card">
+      <div class="empty-state">
+        <h2>No suggestion yet</h2>
+        <span>Ask a model above; the first call for a run also indexes its code.</span>
+      </div>
+    </section>
+  }
+}
