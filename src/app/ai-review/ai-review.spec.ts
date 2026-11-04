@@ -153,7 +153,10 @@ describe('AiReview', () => {
     return fixture.nativeElement as HTMLElement;
   }
 
-  function flushModels(items: LlmModel[] = [model()]): void {
+  function flushModels(items: LlmModel[] = [
+    model(),
+    model({ id: 2, capability: 'EMBEDDING', modelName: 'gemini-embedding-2', embeddingDimension: 1536 }),
+  ]): void {
     http.expectOne((request) => request.url === '/api/models').flush(page(items));
     fixture.detectChanges();
   }
@@ -259,7 +262,7 @@ describe('AiReview', () => {
     expect(root.querySelectorAll('.diff__line--removed').length).toBe(1);
   });
 
-  it('asks a model and shows the new suggestion, including the registry default', async () => {
+  it('preselects a usable model of each kind and asks it', async () => {
     configure({ analysisId: '7', findingId: '11' });
     const root = create();
     flushModels();
@@ -273,7 +276,7 @@ describe('AiReview', () => {
 
     const request = http.expectOne('/api/findings/11/suggestions');
     expect(request.request.method).toBe('POST');
-    expect(request.request.body).toEqual({ modelId: null, embeddingModelId: null });
+    expect(request.request.body).toEqual({ modelId: 1, embeddingModelId: 2 });
     request.flush(suggestion());
     fixture.detectChanges();
 

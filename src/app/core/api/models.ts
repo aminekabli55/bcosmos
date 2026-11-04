@@ -310,7 +310,12 @@ export interface Suggestion {
   retrieval: SuggestionRetrieval;
 }
 
-/** Body of `POST /api/findings/{id}/suggestions`; both ids are optional and fall back to the registry defaults. */
+/**
+ * Body of `POST /api/findings/{id}/suggestions`.
+ *
+ * <p>Both ids are required in practice: the registry has no stored default (changeset 0027), so a request that
+ * names neither is refused with the list of models it could have named.</p>
+ */
 export interface SuggestRequest {
   modelId?: number | null;
   embeddingModelId?: number | null;

@@ -62,8 +62,8 @@
     <div class="ask">
       <label class="field">
         <span>Chat model</span>
-        <select class="select" (change)="onModelChange($event)">
-          <option value="">registry default</option>
+        <select class="select" [value]="modelId() ?? ''" (change)="onModelChange($event)">
+          <option value="">choose a model…</option>
           @for (model of chatModels(); track model.id) {
             <option [value]="model.id">{{ model.provider }}/{{ model.modelName }}</option>
           }
@@ -71,8 +71,8 @@
       </label>
       <label class="field">
         <span>Embedding model</span>
-        <select class="select" (change)="onEmbeddingModelChange($event)">
-          <option value="">registry default</option>
+        <select class="select" [value]="embeddingModelId() ?? ''" (change)="onEmbeddingModelChange($event)">
+          <option value="">choose a model…</option>
           @for (model of embeddingModels(); track model.id) {
             <option [value]="model.id">
               {{ model.provider }}/{{ model.modelName }} ({{ model.embeddingDimension }}d)
@@ -80,13 +80,19 @@
           }
         </select>
       </label>
-      <button type="button" class="button" [disabled]="requesting()" (click)="requestSuggestion()">
+      <button type="button" class="button"
+              [disabled]="requesting() || modelId() === null || embeddingModelId() === null"
+              (click)="requestSuggestion()">
         {{ requesting() ? 'Asking…' : 'Suggest a fix' }}
       </button>
     </div>
 
     @if (chatModels().length === 0) {
       <p class="state">No chat model is enabled. Enable one in <a routerLink="/settings">Settings</a> first.</p>
+    }
+    @if (embeddingModels().length === 0) {
+      <p class="state">No embedding model is enabled. Retrieval needs one; enable it in
+        <a routerLink="/settings">Settings</a> first.</p>
     }
     @if (requesting()) {
       <p class="state">Indexing the run and waiting for the model… this can take a while on the first call.</p>

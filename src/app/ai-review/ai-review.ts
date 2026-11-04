@@ -221,8 +221,38 @@ export class AiReview {
 
   private loadModels(): void {
     this.api.listModels().subscribe({
-      next: (page) => this.models.set(page.items),
+      next: (page) => {
+        this.models.set(page.items);
+        this.selectUsableModels();
+      },
       error: () => this.models.set([]),
     });
+  }
+
+  /**
+   * Picks a row of each kind when the screen opens.
+   *
+   * <p>The registry has no stored default any more: a call has to name its model (changeset 0027). Starting both selects
+   * on the first usable row keeps "Suggest a fix" working out of the box, instead of sending null and earning a
+   * "this call has to name the model it wants" refusal.</p>
+   */
+  private selectUsableModels(): void {
+    if (this.modelId() === null) {
+      this.modelId.set(AiReview.newest(this.chatModels()));
+    }
+    if (this.embeddingModelId() === null) {
+      this.embeddingModelId.set(AiReview.newest(this.embeddingModels()));
+    }
+  }
+
+  /**
+   * The most recently registered enabled row, not the lowest id.
+   *
+   * <p>A seeded model keeps its id forever, so "first" pins an install to whichever model was current when the
+   * seed was written; the newest row is the one a user added or enabled last.</p>
+   */
+  private static newest(models: LlmModel[]): number | null {
+    return models.reduce<LlmModel | null>((newest, model) =>
+      newest === null || model.id > newest.id ? model : newest, null)?.id ?? null;
   }
 }
