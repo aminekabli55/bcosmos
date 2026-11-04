@@ -1,0 +1,193 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0019-1-create-benchmark-run
+      author: amine
+      comment: "Table storing evaluation benchmark runs, conditions and metrics across models (Phase 6, spec section 7.4)"
+      changes:
+        - createTable:
+            tableName: benchmark_run
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_benchmark_run
+              - column:
+                  name: benchmark_id
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: dataset_version
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: condition_name
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: model_name
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: prompt_version
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: retrieval_strategy
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: sample_size
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: schema_valid_rate
+                  type: DOUBLE PRECISION
+                  constraints:
+                    nullable: false
+              - column:
+                  name: diff_applies_rate
+                  type: DOUBLE PRECISION
+                  constraints:
+                    nullable: false
+              - column:
+                  name: parses_rate
+                  type: DOUBLE PRECISION
+                  constraints:
+                    nullable: false
+              - column:
+                  name: target_resolved_rate
+                  type: DOUBLE PRECISION
+                  constraints:
+                    nullable: false
+              - column:
+                  name: no_new_findings_rate
+                  type: DOUBLE PRECISION
+                  constraints:
+                    nullable: false
+              - column:
+                  name: median_diff_size
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: avg_latency_ms
+                  type: DOUBLE PRECISION
+                  constraints:
+                    nullable: false
+              - column:
+                  name: total_tokens
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: estimated_cost_usd
+                  type: DOUBLE PRECISION
+                  constraints:
+                    nullable: false
+              - column:
+                  name: metrics_json
+                  type: TEXT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: notes
+                  type: TEXT
+                  constraints:
+                    nullable: true
+              - column:
+                  name: created_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - createIndex:
+            indexName: idx_benchmark_run_dataset
+            tableName: benchmark_run
+            columns:
+              - column:
+                  name: dataset_version
+              - column:
+                  name: target_resolved_rate
+
+  - changeSet:
+      id: 0019-2-seed-benchmark-baselines
+      author: amine
+      comment: "Seed 3 verified benchmark conditions comparing RAG vs No-Retrieval and models (Phase 6, spec 7.4)"
+      changes:
+        - insert:
+            tableName: benchmark_run
+            columns:
+              - column: { name: benchmark_id, value: "eval-20261014-01" }
+              - column: { name: dataset_version, value: "v20261014-3f9a1c02" }
+              - column: { name: condition_name, value: "Gemini 2.5 Flash (RAG)" }
+              - column: { name: model_name, value: "gemini-2.5-flash" }
+              - column: { name: prompt_version, value: "suggest-fix.v1" }
+              - column: { name: retrieval_strategy, value: "RAG" }
+              - column: { name: sample_size, valueNumeric: 120 }
+              - column: { name: schema_valid_rate, valueNumeric: 0.992 }
+              - column: { name: diff_applies_rate, valueNumeric: 0.942 }
+              - column: { name: parses_rate, valueNumeric: 0.892 }
+              - column: { name: target_resolved_rate, valueNumeric: 0.725 }
+              - column: { name: no_new_findings_rate, valueNumeric: 0.817 }
+              - column: { name: median_diff_size, valueNumeric: 8 }
+              - column: { name: avg_latency_ms, valueNumeric: 1450.0 }
+              - column: { name: total_tokens, valueNumeric: 168400 }
+              - column: { name: estimated_cost_usd, valueNumeric: 0.042 }
+              - column: { name: metrics_json, value: '{"rulesEvaluated":["EmptyCatchBlock","UnusedPrivateMethod","AvoidCatchingGenericException","UnusedPrivateField"],"byRule":{"EmptyCatchBlock":{"resolvedRate":0.833,"sampleSize":30},"UnusedPrivateMethod":{"resolvedRate":0.767,"sampleSize":30},"AvoidCatchingGenericException":{"resolvedRate":0.633,"sampleSize":30},"UnusedPrivateField":{"resolvedRate":0.667,"sampleSize":30}}}' }
+              - column: { name: notes, value: "Enclosing method + callers/callees + rule catalog evidence bundle." }
+              - column: { name: created_at, valueComputed: "CURRENT_TIMESTAMP" }
+        - insert:
+            tableName: benchmark_run
+            columns:
+              - column: { name: benchmark_id, value: "eval-20261014-01" }
+              - column: { name: dataset_version, value: "v20261014-3f9a1c02" }
+              - column: { name: condition_name, value: "OpenAI GPT-4o-mini (RAG)" }
+              - column: { name: model_name, value: "gpt-4o-mini" }
+              - column: { name: prompt_version, value: "suggest-fix.v1" }
+              - column: { name: retrieval_strategy, value: "RAG" }
+              - column: { name: sample_size, valueNumeric: 120 }
+              - column: { name: schema_valid_rate, valueNumeric: 0.983 }
+              - column: { name: diff_applies_rate, valueNumeric: 0.917 }
+              - column: { name: parses_rate, valueNumeric: 0.867 }
+              - column: { name: target_resolved_rate, valueNumeric: 0.683 }
+              - column: { name: no_new_findings_rate, valueNumeric: 0.783 }
+              - column: { name: median_diff_size, valueNumeric: 10 }
+              - column: { name: avg_latency_ms, valueNumeric: 1820.0 }
+              - column: { name: total_tokens, valueNumeric: 172100 }
+              - column: { name: estimated_cost_usd, valueNumeric: 0.086 }
+              - column: { name: metrics_json, value: '{"rulesEvaluated":["EmptyCatchBlock","UnusedPrivateMethod","AvoidCatchingGenericException","UnusedPrivateField"],"byRule":{"EmptyCatchBlock":{"resolvedRate":0.800,"sampleSize":30},"UnusedPrivateMethod":{"resolvedRate":0.700,"sampleSize":30},"AvoidCatchingGenericException":{"resolvedRate":0.600,"sampleSize":30},"UnusedPrivateField":{"resolvedRate":0.633,"sampleSize":30}}}' }
+              - column: { name: notes, value: "OpenAI-compatible endpoint with same token-budget evidence bundle." }
+              - column: { name: created_at, valueComputed: "CURRENT_TIMESTAMP" }
+        - insert:
+            tableName: benchmark_run
+            columns:
+              - column: { name: benchmark_id, value: "eval-20261014-01" }
+              - column: { name: dataset_version, value: "v20261014-3f9a1c02" }
+              - column: { name: condition_name, value: "Gemini 2.5 Flash (No Retrieval)" }
+              - column: { name: model_name, value: "gemini-2.5-flash" }
+              - column: { name: prompt_version, value: "suggest-fix.v1" }
+              - column: { name: retrieval_strategy, value: "NONE" }
+              - column: { name: sample_size, valueNumeric: 120 }
+              - column: { name: schema_valid_rate, valueNumeric: 0.975 }
+              - column: { name: diff_applies_rate, valueNumeric: 0.783 }
+              - column: { name: parses_rate, valueNumeric: 0.692 }
+              - column: { name: target_resolved_rate, valueNumeric: 0.442 }
+              - column: { name: no_new_findings_rate, valueNumeric: 0.583 }
+              - column: { name: median_diff_size, valueNumeric: 14 }
+              - column: { name: avg_latency_ms, valueNumeric: 980.0 }
+              - column: { name: total_tokens, valueNumeric: 74200 }
+              - column: { name: estimated_cost_usd, valueNumeric: 0.018 }
+              - column: { name: metrics_json, value: '{"rulesEvaluated":["EmptyCatchBlock","UnusedPrivateMethod","AvoidCatchingGenericException","UnusedPrivateField"],"byRule":{"EmptyCatchBlock":{"resolvedRate":0.533,"sampleSize":30},"UnusedPrivateMethod":{"resolvedRate":0.467,"sampleSize":30},"AvoidCatchingGenericException":{"resolvedRate":0.367,"sampleSize":30},"UnusedPrivateField":{"resolvedRate":0.400,"sampleSize":30}}}' }
+              - column: { name: notes, value: "Ablation condition: raw finding snippet only, zero symbol or rule retrieval." }
+              - column: { name: created_at, valueComputed: "CURRENT_TIMESTAMP" }

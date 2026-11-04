@@ -1,0 +1,37 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0016-repository-nullable-local-path
+      author: bcosmos
+      comment: >
+        A repository the miner clones has no local path of its own: it lives in the miner's own cache, which is
+        private to that process and is not something the backend owns or may invent. Until now
+        canonical_local_path was NOT NULL, which forced a mined repository row to state a path that did not exist.
+        The column becomes nullable, and a check constraint keeps the invariant that actually matters: a LOCAL
+        repository has a canonical path and no remote URL, a MINED repository has a remote URL and no local path.
+      changes:
+        - dropNotNullConstraint:
+            tableName: repository
+            columnName: canonical_local_path
+            columnDataType: varchar(1000)
+        # Postgres allows many NULLs in a unique index, so this keeps local repositories unconstrained while making
+        # the same remote URL impossible to ingest twice.
+        - addUniqueConstraint:
+            tableName: repository
+            columnNames: remote_url
+            constraintName: uq_repository_remote_url
+        # Raw SQL: Liquibase core has no addCheckConstraint change type, and this invariant is worth the DDL.
+        - sql:
+            sql: >-
+              ALTER TABLE repository ADD CONSTRAINT ck_repository_source
+              CHECK ((source_type = 'LOCAL' AND canonical_local_path IS NOT NULL AND remote_url IS NULL)
+              OR (source_type = 'MINED' AND remote_url IS NOT NULL AND canonical_local_path IS NULL))
+      rollback:
+        - dropUniqueConstraint:
+            tableName: repository
+            constraintName: uq_repository_remote_url
+        - sql:
+            sql: ALTER TABLE repository DROP CONSTRAINT IF EXISTS ck_repository_source
+        - addNotNullConstraint:
+            tableName: repository
+            columnName: canonical_local_path
+            columnDataType: varchar(1000)

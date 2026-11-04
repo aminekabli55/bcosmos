@@ -1,0 +1,97 @@
+spring:
+  application:
+    name: backend
+  profiles:
+    default: dev
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    # One width for every vector in the database: the code_chunk.embedding column and the HNSW index are created
+    # with this value, and bcosmos.retrieval.embedding-dimension must stay equal to it (the key name is the
+    # changelog parameter name, so it is case-sensitive).
+    parameters:
+      embeddingDimension: ${BCOSMOS_EMBEDDING_DIMENSION:1536}
+  kafka:
+    # Shared by the producer and the consumer; the pipeline itself is off unless bcosmos.kafka.enabled is true.
+    bootstrap-servers: ${BCOSMOS_KAFKA_BOOTSTRAP:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+  datasource:
+    hikari:
+      pool-name: bcosmos-backend
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+bcosmos:
+  # The Kafka pipeline (Phase 4). Off means analyses run in-process and no broker is needed (ADR 0003).
+  kafka:
+    enabled: ${BCOSMOS_KAFKA_ENABLED:false}
+    partitions: ${BCOSMOS_KAFKA_PARTITIONS:3}
+    replicas: ${BCOSMOS_KAFKA_REPLICAS:1}
+  # What may be ingested into the corpus. The allowlist is enforced at ingest time, before an event exists.
+  corpus:
+    allowed-hosts: ${BCOSMOS_CORPUS_ALLOWED_HOSTS:github.com}
+    commit-window: ${BCOSMOS_CORPUS_COMMIT_WINDOW:200}
+  repository:
+    limits:
+      max-files: ${BCOSMOS_MAX_FILES:20000}
+      max-file-size-bytes: ${BCOSMOS_MAX_FILE_SIZE_BYTES:2000000}
+    ignored-directories: []
+  # Retrieval budget and chunking limits for Phase 3 (spec v2 section 7.2).
+  retrieval:
+    embedding-dimension: ${BCOSMOS_EMBEDDING_DIMENSION:1536}
+    top-k: ${BCOSMOS_RETRIEVAL_TOP_K:8}
+    token-budget: ${BCOSMOS_RETRIEVAL_TOKEN_BUDGET:6000}
+    max-chunk-chars: ${BCOSMOS_RETRIEVAL_MAX_CHUNK_CHARS:6000}
+    embed-batch-size: ${BCOSMOS_RETRIEVAL_EMBED_BATCH_SIZE:16}
+    # How many not-yet-embedded texts one suggestion call may send (ADR 0044). The default fits within the
+    # 100-texts-per-minute allowance of a free Gemini key, so the first suggestion answers instead of sitting out
+    # quota windows; the rest of a large run's index follows with the next suggestion. Every finished batch is
+    # stored, so later calls reuse it and continue where the previous one stopped. Zero means "embed the whole run
+    # in one call" (only sensible on a provider without a per-minute quota).
+    index-texts-per-call: ${BCOSMOS_RETRIEVAL_INDEX_TEXTS_PER_CALL:96}
+    # How long one index build may sit out rate limits in total (ADR 0041). The per-call budget (bcosmos.ai.timeout)
+    # is deliberately too short to absorb a per-minute quota window, so the build waits here instead: it sleeps what
+    # the provider asked for and retries the batch. A quota that asks for longer than this fails the build with the
+    # wait in the message, because a spent daily quota cannot be waited out.
+    rate-limit-patience: ${BCOSMOS_RETRIEVAL_RATE_LIMIT_PATIENCE:2m}
+  ai:
+    enabled: ${BCOSMOS_AI_ENABLED:false}
+    # One attempt's budget. A current reasoning model on a retrieval-sized prompt (8k tokens) needs longer than the
+    # 30s this used to be: gemini-3.8-flash answered the same suggestion in 20s once and exceeded 30s on the next
+    # finding, so 30s turned a slow answer into a 504. Embedding calls finish in about a second either way (ADR 0045).
+    timeout: ${BCOSMOS_AI_TIMEOUT:90s}
+    connect-timeout: ${BCOSMOS_AI_CONNECT_TIMEOUT:5s}
+    max-attempts: ${BCOSMOS_AI_MAX_ATTEMPTS:3}
+    initial-backoff: ${BCOSMOS_AI_INITIAL_BACKOFF:500ms}
+    backoff-multiplier: ${BCOSMOS_AI_BACKOFF_MULTIPLIER:2.0}
+    # A suggestion carries a summary, an explanation, citations and a diff. 2048 tokens truncates that mid-JSON on
+    # a large file, which the gateway then sees as "not valid JSON" and has to retry; 4096 leaves room (ADR 0045).
+    max-output-tokens: ${BCOSMOS_AI_MAX_OUTPUT_TOKENS:4096}
+    # Master key for credentials stored through the settings screen (ADR 0038). Absent means "no stored keys": a
+    # provider then reads the environment variable its row names, and pasting a key is refused with a message
+    # saying so. Generate it with: openssl rand -base64 32. Never commit a real value here. It wins over the key
+    # file below, so a deployment states its key and no file decides for it.
+    secret-key: ${BCOSMOS_AI_SECRET_KEY:}
+    # A file to keep the master key in instead of the environment (ADR 0039). Empty here: outside the dev profile
+    # there is no file and nothing is generated, so this stays an environment-only deployment.
+    secret-key-file: ${BCOSMOS_AI_SECRET_KEY_FILE:}
+    # Whether a missing or empty key file may be filled with a freshly generated key. Off by default, on in dev:
+    # a production deployment states its key and never invents one on a container filesystem.
+    generate-secret-key: ${BCOSMOS_AI_GENERATE_SECRET_KEY:false}
+    # Provider endpoints and credentials are no longer configuration: they are rows in llm_provider, seeded by
+    # changeset 0025 and editable in the Settings screen (spec v2 sections 7.1 and 10). Each row names the
+    # environment variable to fall back on - gemini names GEMINI_API_KEY, openai names OPENAI_API_KEY, deepseek
+    # names DEEPSEEK_API_KEY, claude names ANTHROPIC_API_KEY.

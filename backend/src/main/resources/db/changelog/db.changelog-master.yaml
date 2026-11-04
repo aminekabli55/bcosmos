@@ -1,0 +1,116 @@
+databaseChangeLog:
+  - include:
+      file: changes/0001-enable-pgvector.yaml
+      relativeToChangelogFile: true
+  # Phase 1 (core slice): repository, analysis_run, job, file_record, symbol, finding.
+  - include:
+      file: changes/0002-create-repository.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/0003-create-analysis-run.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/0004-create-job.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/0005-create-file-record.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/0006-create-symbol.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/0007-create-finding.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/0008-create-llm-model.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/0009-create-llm-usage.yaml
+      relativeToChangelogFile: true
+
+  # Phase 2 (AI gateway): settings that are editable from the browser.
+  - include:
+      file: changes/0010-create-app-setting.yaml
+      relativeToChangelogFile: true
+
+  # Phase 3 (RAG and suggestions): the analysed revision, its embedded chunks and the suggestions built on them.
+  - include:
+      file: changes/0011-create-file-content.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/0012-create-code-chunk.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/0013-create-suggestion.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/0014-add-model-capability.yaml
+      relativeToChangelogFile: true
+
+  # Phase 4 (Kafka pipeline): the commits the miner discovered, and the repository shape a mined repository needs
+  # (no local path of its own).
+  - include:
+      file: changes/0015-create-commit-record.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/0016-repository-nullable-local-path.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/0017-create-worker-file-result.yaml
+      relativeToChangelogFile: true
+
+  # Phase 5 (Spark lakehouse): the gold tables Spark loads and the backend only reads.
+  - include:
+      file: changes/0018-create-analytics-gold.yaml
+      relativeToChangelogFile: true
+
+  # Phase 6 (Evaluation harness): benchmark run metrics and leaderboard.
+  - include:
+      file: changes/0019-create-benchmark-run.yaml
+      relativeToChangelogFile: true
+
+  # Phase 7 (Fine-tuning): registered fine-tuned model and leaderboard evaluation row.
+  - include:
+      file: changes/0020-seed-finetuned-model-and-benchmark.yaml
+      relativeToChangelogFile: true
+
+  # Phase 8 (Graph & history): symbol relationships, call graph, and finding transitions.
+  - include:
+      file: changes/0021-create-relationship.yaml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/0022-create-finding-transition.yaml
+      relativeToChangelogFile: true
+
+  # Phase 9 (Commit Review): three-layer evidence-based commit reviews.
+  - include:
+      file: changes/0023-create-commit-review.yaml
+      relativeToChangelogFile: true
+
+  # Repository lifecycle: removing a registration is a first-class operation, so its one child foreign key that
+  # was still refusing the delete is aligned with the cascade every other repository child already has (ADR 0037).
+  - include:
+      file: changes/0024-commit-review-repository-cascade.yaml
+      relativeToChangelogFile: true
+
+  # Phase 11 (provider registry): a provider becomes a row, so a new vendor is data instead of a deployment.
+  - include:
+      file: changes/0025-create-llm-provider.yaml
+      relativeToChangelogFile: true
+
+  # Follow-up to 0025: the seeded model notes still named a configuration key that no longer exists.
+  - include:
+      file: changes/0026-fix-seeded-model-notes.yaml
+      relativeToChangelogFile: true
+
+  # Model selection: a call names the model it wants, so the stored default has no reader left (ADR 0042).
+  - include:
+      file: changes/0027-drop-model-default.yaml
+      relativeToChangelogFile: true
+
+  # The seeded gemini-2.5-flash is restricted to projects that already used it; register the model Google
+  # recommends for new projects instead (ADR 0045).
+  - include:
+      file: changes/0028-seed-current-gemini-chat-model.yaml
+      relativeToChangelogFile: true
+

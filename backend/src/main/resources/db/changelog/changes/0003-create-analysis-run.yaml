@@ -1,0 +1,109 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0003-create-analysis-run
+      author: bcosmos
+      comment: >
+        One analysis of one repository (spec v2 section 4.1). The run carries the counters the UI shows and the
+        versions of everything that produced its results, so two runs can be compared honestly. error_summary is an
+        addition to the spec table: the API has to explain a failed run, and the Phase 1 requirement is that
+        failures are never hidden.
+      changes:
+        - createTable:
+            tableName: analysis_run
+            remarks: One analysis pass over one repository
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: repository_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: commit_hash
+                  type: varchar(64)
+                  remarks: Null for a local working-tree run; filled by the commit pipeline from phase 4 on.
+              - column:
+                  name: status
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: stage
+                  type: varchar(30)
+              - column:
+                  name: parser_version
+                  type: varchar(120)
+              - column:
+                  name: analyzer_version
+                  type: varchar(120)
+              - column:
+                  name: ruleset_hash
+                  type: varchar(64)
+              - column:
+                  name: schema_version
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: files_discovered
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: files_parsed
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: files_failed
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: error_code
+                  type: varchar(60)
+              - column:
+                  name: error_summary
+                  type: varchar(500)
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: started_at
+                  type: timestamp with time zone
+              - column:
+                  name: finished_at
+                  type: timestamp with time zone
+        - addForeignKeyConstraint:
+            baseTableName: analysis_run
+            baseColumnNames: repository_id
+            referencedTableName: repository
+            referencedColumnNames: id
+            constraintName: fk_analysis_run_repository
+            onDelete: CASCADE
+        - createIndex:
+            tableName: analysis_run
+            indexName: idx_analysis_run_repository
+            columns:
+              - column:
+                  name: repository_id
+              - column:
+                  name: created_at
+                  descending: true
+        - createIndex:
+            tableName: analysis_run
+            indexName: idx_analysis_run_status
+            columns:
+              - column:
+                  name: status
+      rollback:
+        - dropTable:
+            tableName: analysis_run

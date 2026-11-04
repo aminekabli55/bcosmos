@@ -1,0 +1,64 @@
+package com.bcosmos.backend.persistence;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.Objects;
+
+/**
+ * One registry row as data, not as a JPA entity.
+ *
+ * <p>The store port speaks this record so the model registry can be tested without a database and so nothing
+ * outside {@code persistence} handles a managed entity. {@code id} is {@code null} for a row that has not been
+ * inserted yet. {@code provider} is the whole provider row: the model cannot be called without the endpoint that
+ * row carries (ADR 0038).</p>
+ */
+public record LlmModelRecord(
+        Long id,
+        LlmProviderRecord provider,
+        String modelName,
+        LlmModelKind kind,
+        LlmModelCapability capability,
+        Integer embeddingDimension,
+        boolean enabled,
+        int contextWindow,
+        BigDecimal costPer1kIn,
+        BigDecimal costPer1kOut,
+        String notes,
+        Instant createdAt,
+        Instant updatedAt) {
+
+    public LlmModelRecord {
+        Objects.requireNonNull(provider, "provider");
+        Objects.requireNonNull(modelName, "modelName");
+        Objects.requireNonNull(kind, "kind");
+        capability = capability == null ? LlmModelCapability.CHAT : capability;
+        Objects.requireNonNull(costPer1kIn, "costPer1kIn");
+        Objects.requireNonNull(costPer1kOut, "costPer1kOut");
+        Objects.requireNonNull(createdAt, "createdAt");
+        Objects.requireNonNull(updatedAt, "updatedAt");
+    }
+
+    /** True for a row the {@code embed} path may use. */
+    public boolean embeddingCapable() {
+        return capability == LlmModelCapability.EMBEDDING;
+    }
+
+    /** This row with an edit applied; a {@code null} argument leaves that field alone. */
+    public LlmModelRecord withEdit(Boolean newEnabled, Integer newContextWindow,
+            BigDecimal newCostPer1kIn, BigDecimal newCostPer1kOut, String newNotes, Instant now) {
+        return new LlmModelRecord(
+                id,
+                provider,
+                modelName,
+                kind,
+                capability,
+                embeddingDimension,
+                newEnabled == null ? enabled : newEnabled,
+                newContextWindow == null ? contextWindow : newContextWindow,
+                newCostPer1kIn == null ? costPer1kIn : newCostPer1kIn,
+                newCostPer1kOut == null ? costPer1kOut : newCostPer1kOut,
+                newNotes == null ? notes : newNotes,
+                createdAt,
+                now);
+    }
+}

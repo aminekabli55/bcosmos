@@ -1,0 +1,124 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0021-create-relationship
+      author: amine
+      comment: "Table storing symbol relationships, invocations, and inheritance (Phase 8, spec section 4.1)"
+      changes:
+        - createTable:
+            tableName: relationship
+            remarks: Directed edges between symbols or external references
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: run_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: source_symbol_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: target_symbol_id
+                  type: bigint
+                  constraints:
+                    nullable: true
+              - column:
+                  name: target_reference_name
+                  type: varchar(500)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: type
+                  type: varchar(30)
+                  remarks: CALLS, EXTENDS, IMPLEMENTS, USES_TYPE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: resolution_status
+                  type: varchar(20)
+                  remarks: RESOLVED, UNRESOLVED, AMBIGUOUS
+                  constraints:
+                    nullable: false
+              - column:
+                  name: confidence
+                  type: double precision
+                  constraints:
+                    nullable: false
+              - column:
+                  name: evidence_file
+                  type: varchar(500)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: evidence_line
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+
+        - addForeignKeyConstraint:
+            baseTableName: relationship
+            baseColumnNames: run_id
+            referencedTableName: analysis_run
+            referencedColumnNames: id
+            constraintName: fk_relationship_run
+            onDelete: CASCADE
+
+        - addForeignKeyConstraint:
+            baseTableName: relationship
+            baseColumnNames: source_symbol_id
+            referencedTableName: symbol
+            referencedColumnNames: id
+            constraintName: fk_relationship_source_symbol
+            onDelete: CASCADE
+
+        - addForeignKeyConstraint:
+            baseTableName: relationship
+            baseColumnNames: target_symbol_id
+            referencedTableName: symbol
+            referencedColumnNames: id
+            constraintName: fk_relationship_target_symbol
+            onDelete: SET NULL
+
+        - createIndex:
+            tableName: relationship
+            indexName: idx_relationship_run
+            columns:
+              - column:
+                  name: run_id
+
+        - createIndex:
+            tableName: relationship
+            indexName: idx_relationship_source
+            columns:
+              - column:
+                  name: source_symbol_id
+
+        - createIndex:
+            tableName: relationship
+            indexName: idx_relationship_target
+            columns:
+              - column:
+                  name: target_symbol_id
+
+        - createIndex:
+            tableName: relationship
+            indexName: idx_relationship_run_type
+            columns:
+              - column:
+                  name: run_id
+              - column:
+                  name: type

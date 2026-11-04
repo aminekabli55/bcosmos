@@ -1,0 +1,22 @@
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 2
+      connection-timeout: 3000
+  kafka:
+    consumer:
+      auto-offset-reset: earliest
+
+bcosmos:
+  repository:
+    allowed-roots: ${user.dir},${user.dir}/../sample-data
+    limits:
+      max-files: 500
+      max-file-size-bytes: 100000
+
+logging:
+  level:
+    root: WARN
+    com.bcosmos: INFO
+    liquibase: WARN
+    org.testcontainers: WARN

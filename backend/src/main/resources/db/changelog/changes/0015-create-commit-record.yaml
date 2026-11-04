@@ -1,0 +1,78 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0015-create-commit-record
+      author: bcosmos
+      comment: >
+        One row per commit the miner discovered (spec v2 section 4.1). It is what makes the pipeline's progress
+        answerable from Postgres alone: the corpus status endpoint reads this table instead of asking Kafka or the
+        worker what happened. author_hash stores an already-hashed author identity, never an email or a name, so the
+        corpus carries no personal data (spec section 10). The unique constraint on (repository_id, hash) is the
+        idempotency key of the ingest side: the miner may publish the same commit twice (at-least-once delivery) and
+        the second write is an update, not a duplicate row (spec section 5.3). parent_hashes is a Postgres text array
+        because a merge commit has more than one parent. changed_java_files is a count, not the list: the list
+        travels on the event and would only be re-derived metadata in this table.
+      changes:
+        - createTable:
+            tableName: commit_record
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    primaryKeyName: pk_commit_record
+              - column:
+                  name: repository_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_commit_record_repository
+                    references: repository(id)
+                    deleteCascade: true
+              - column:
+                  name: hash
+                  type: varchar(64)
+                  remarks: Full commit hash; the pipeline never keys on an abbreviation.
+                  constraints:
+                    nullable: false
+              - column:
+                  name: parent_hashes
+                  type: text[]
+                  remarks: Parent commit hashes, empty for a root commit, more than one for a merge.
+              - column:
+                  name: committed_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+              - column:
+                  name: author_hash
+                  type: varchar(64)
+                  remarks: Hashed author identity. Never an email address or a name.
+              - column:
+                  name: changed_java_files
+                  type: integer
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+        - addUniqueConstraint:
+            tableName: commit_record
+            columnNames: repository_id, hash
+            constraintName: uq_commit_record_repository_hash
+        - createIndex:
+            tableName: commit_record
+            indexName: idx_commit_record_repository_committed_at
+            columns:
+              - column:
+                  name: repository_id
+              - column:
+                  name: committed_at
+                  descending: true
+      rollback:
+        - dropTable:
+            tableName: commit_record

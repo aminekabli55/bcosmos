@@ -1,0 +1,21 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${BCOSMOS_DB_HOST:localhost}:${BCOSMOS_DB_PORT:5433}/${BCOSMOS_DB_NAME:bcosmos}
+    username: ${BCOSMOS_DB_USER:bcosmos}
+    password: ${BCOSMOS_DB_PASSWORD:bcosmos}
+
+bcosmos:
+  repository:
+    allowed-roots: ${BCOSMOS_ALLOWED_ROOTS:${user.home}}
+  ai:
+    enabled: ${BCOSMOS_AI_ENABLED:true}
+    # A development master key, so storing a pasted API key in Settings is a browser action and not a shell step
+    # (ADR 0039): the first start writes 32 random bytes to this file, outside the repository, and every later
+    # start reuses them. BCOSMOS_AI_SECRET_KEY overrides it, and a deployment that sets it never sees this file.
+    secret-key-file: ${BCOSMOS_AI_SECRET_KEY_FILE:${user.home}/.bcosmos/ai-secret.key}
+    generate-secret-key: ${BCOSMOS_AI_GENERATE_SECRET_KEY:true}
+
+management:
+  endpoint:
+    health:
+      show-details: always

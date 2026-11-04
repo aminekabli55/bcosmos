@@ -1,0 +1,22 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${BCOSMOS_DB_HOST}:${BCOSMOS_DB_PORT:5432}/${BCOSMOS_DB_NAME}
+    username: ${BCOSMOS_DB_USER}
+    password: ${BCOSMOS_DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${BCOSMOS_DB_POOL_SIZE:10}
+
+bcosmos:
+  repository:
+    # No default: a production deployment must state which directories it may read.
+    allowed-roots: ${BCOSMOS_ALLOWED_ROOTS}
+
+management:
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    root: WARN
+    com.bcosmos: INFO

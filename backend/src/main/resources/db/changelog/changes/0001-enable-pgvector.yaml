@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0001-enable-pgvector
+      author: bcosmos
+      comment: pgvector is required for code_chunk.embedding (ADR 0002). Backend owns all migrations (ADR 0009).
+      changes:
+        - sql:
+            comment: PostgreSQL extension providing the vector type and HNSW indexes
+            sql: CREATE EXTENSION IF NOT EXISTS vector
+      rollback:
+        - sql:
+            sql: DROP EXTENSION IF EXISTS vector

@@ -1,0 +1,109 @@
+databaseChangeLog:
+  - changeSet:
+      id: 0006-create-symbol
+      author: bcosmos
+      comment: >
+        Symbols of one run (spec v2 section 4.1). Phase 1 stores what the Java adapter reports: kind, names, position
+        and the signature hash. Relationships between symbols are phase 8 and deliberately absent.
+      changes:
+        - createTable:
+            tableName: symbol
+            remarks: Classes, methods and fields found by one analysis run
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: run_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: file_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: kind
+                  type: varchar(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(300)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: qualified_name
+                  type: varchar(1000)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: parent_qualified_name
+                  type: varchar(1000)
+              - column:
+                  name: start_line
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: start_column
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: end_line
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: end_column
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: signature_hash
+                  type: varchar(64)
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: symbol
+            baseColumnNames: run_id
+            referencedTableName: analysis_run
+            referencedColumnNames: id
+            constraintName: fk_symbol_analysis_run
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: symbol
+            baseColumnNames: file_id
+            referencedTableName: file_record
+            referencedColumnNames: id
+            constraintName: fk_symbol_file_record
+            onDelete: CASCADE
+        - createIndex:
+            tableName: symbol
+            indexName: idx_symbol_run
+            columns:
+              - column:
+                  name: run_id
+        - createIndex:
+            tableName: symbol
+            indexName: idx_symbol_file
+            columns:
+              - column:
+                  name: file_id
+        - createIndex:
+            tableName: symbol
+            indexName: idx_symbol_run_qualified_name
+            columns:
+              - column:
+                  name: run_id
+              - column:
+                  name: qualified_name
+      rollback:
+        - dropTable:
+            tableName: symbol

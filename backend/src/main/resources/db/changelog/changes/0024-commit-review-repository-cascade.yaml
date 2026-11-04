@@ -1,0 +1,33 @@
+databaseChangeLog:
+  # 0023 created commit_review.repository_id, and it is the only foreign key in the schema pointing at repository
+  # without ON DELETE CASCADE: every other child table (analysis_run, commit_record, worker_file_result) already
+  # cascades, and so does everything below analysis_run. That single missing cascade is why
+  # `DELETE FROM repository WHERE id = ...` used to fail with a foreign-key error as soon as one commit review
+  # existed, and why repository deletion could not be a single database statement (ADR 0037). Re-create the
+  # constraint with the cascade the rest of the schema already has; nothing about the rows or the columns changes.
+  - changeSet:
+      id: 0024-commit-review-repository-cascade
+      author: bcosmos
+      comment: >-
+        Align fk_commit_review_repository with every other repository foreign key by adding ON DELETE CASCADE.
+      changes:
+        - dropForeignKeyConstraint:
+            baseTableName: commit_review
+            constraintName: fk_commit_review_repository
+        - addForeignKeyConstraint:
+            baseTableName: commit_review
+            baseColumnNames: repository_id
+            referencedTableName: repository
+            referencedColumnNames: id
+            constraintName: fk_commit_review_repository
+            onDelete: CASCADE
+      rollback:
+        - dropForeignKeyConstraint:
+            baseTableName: commit_review
+            constraintName: fk_commit_review_repository
+        - addForeignKeyConstraint:
+            baseTableName: commit_review
+            baseColumnNames: repository_id
+            referencedTableName: repository
+            referencedColumnNames: id
+            constraintName: fk_commit_review_repository

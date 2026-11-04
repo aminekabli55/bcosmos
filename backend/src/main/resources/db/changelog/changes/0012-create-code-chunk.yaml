@@ -1,0 +1,148 @@
+databaseChangeLog:
+  # The vector width of code_chunk.embedding, one value for the whole project: the column, the HNSW index, the
+  # seeded embedding model rows and the runtime check all read it. Spring Boot overrides it with
+  # spring.liquibase.parameters.embedding-dimension (bcosmos.retrieval.embedding-dimension, default 1536), and the
+  # value below is the default for a plain `liquibase update` without that configuration.
+  - property:
+      name: embeddingDimension
+      value: 1536
+
+  - changeSet:
+      id: 0012-create-code-chunk
+      author: bcosmos
+      comment: >
+        One chunk per method or type (spec v2 section 4.1 and 7.2). symbol_id is not nullable and is unique per
+        (run, model) because chunking is by symbol by design: no arbitrary character splits, and re-embedding with
+        the same model replaces a row instead of piling up duplicates. text is stored so a suggestion can cite the
+        exact code that was embedded, and embed_model is stored because a vector is only comparable with vectors of
+        the same model and width (spec 7.2).
+      changes:
+        - createTable:
+            tableName: code_chunk
+            remarks: Embedded method and type declarations of one run
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: run_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: file_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: symbol_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: relative_path
+                  type: varchar(1000)
+                  remarks: Denormalized so a citation needs no join; always repository-relative.
+                  constraints:
+                    nullable: false
+              - column:
+                  name: qualified_name
+                  type: varchar(1000)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: start_line
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: end_line
+                  type: integer
+                  constraints:
+                    nullable: false
+              - column:
+                  name: text
+                  type: text
+                  remarks: The chunk as it was embedded, header line included.
+                  constraints:
+                    nullable: false
+              - column:
+                  name: token_count
+                  type: integer
+                  remarks: Estimated tokens of this chunk, used for the retrieval budget.
+                  constraints:
+                    nullable: false
+              - column:
+                  name: embedding
+                  type: vector(${embeddingDimension})
+                  constraints:
+                    nullable: false
+              - column:
+                  name: embed_model
+                  type: varchar(160)
+                  remarks: provider/model_name of the embedding model, e.g. GEMINI/gemini-embedding-2.
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp with time zone
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: code_chunk
+            baseColumnNames: run_id
+            referencedTableName: analysis_run
+            referencedColumnNames: id
+            constraintName: fk_code_chunk_analysis_run
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: code_chunk
+            baseColumnNames: file_id
+            referencedTableName: file_record
+            referencedColumnNames: id
+            constraintName: fk_code_chunk_file_record
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableName: code_chunk
+            baseColumnNames: symbol_id
+            referencedTableName: symbol
+            referencedColumnNames: id
+            constraintName: fk_code_chunk_symbol
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            tableName: code_chunk
+            columnNames: run_id, symbol_id, embed_model
+            constraintName: uq_code_chunk_run_symbol_model
+        - createIndex:
+            tableName: code_chunk
+            indexName: idx_code_chunk_run_model
+            columns:
+              - column:
+                  name: run_id
+              - column:
+                  name: embed_model
+      rollback:
+        - dropTable:
+            tableName: code_chunk
+
+  # Separate changeset: the HNSW index is raw DDL, and keeping it apart makes the rollback of the table and of the
+  # index independent. Cosine distance because the vectors are compared by direction, not by length.
+  - changeSet:
+      id: 0012-create-code-chunk-hnsw-index
+      author: bcosmos
+      comment: >
+        Approximate nearest-neighbour index over the embedding column (spec v2 section 7.2, ADR 0002). pgvector
+        supports HNSW up to 2000 dimensions for a plain vector column, which is why the project pins 1536 rather
+        than the 3072 a default Gemini or OpenAI-large embedding would produce.
+      changes:
+        - sql:
+            sql: >-
+              CREATE INDEX idx_code_chunk_embedding_hnsw ON code_chunk
+              USING hnsw (embedding vector_cosine_ops)
+      rollback:
+        - sql:
+            sql: DROP INDEX IF EXISTS idx_code_chunk_embedding_hnsw
