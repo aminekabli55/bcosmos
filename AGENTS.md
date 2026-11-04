@@ -302,6 +302,9 @@ cd frontend            && npm test -- --watch=false    # vitest via ng test
 cd frontend      && npm run build
 cd ai-lab              && ./.venv/Scripts/python.exe -m pytest -q
 
+# CI: .github/workflows/ci.yml runs analysis-core+backend, frontend and ai-lab on every push to main.
+# It mirrors the commands above on Linux runners; the backend job is red while its test sources do not compile.
+
 # Phase 5: the Spark jobs run in Docker (no local PySpark/Hadoop install, ADR 0017), and so does their test
 # suite: Spark cannot start on Windows without winutils. Once per volume, give the warehouse to the job user.
 cd infrastructure && docker compose --profile spark up -d spark-master spark-worker

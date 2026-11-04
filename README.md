@@ -358,6 +358,20 @@ The `spark-jobs` venv is for fast offline unit tests only; jobs are executed thr
 `backend`'s integration tests start a throwaway `pgvector/pgvector:pg17` container, apply the real Liquibase
 changelog and assert `GET /actuator/health` returns `UP`, so Docker must be running for `mvn verify`.
 
+### Continuous integration
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs three jobs on every push to `main` (and on manual
+dispatch): **backend** — Java 21, `./mvnw install` in `analysis-core` then `./mvnw verify` in `backend`, with
+Testcontainers using the runner's own Docker; **frontend** — Node 24, `npm ci` then `npm test -- --watch=false`
+(Vitest under jsdom, so no browser is needed); **ai-lab** — Python 3.12 and a pinned `pytest`, because those tests
+exercise stdlib-only code, not the training stack in `requirements.txt`. The commands are the same ones listed above;
+the workflow is just their Linux equivalent.
+
+The **backend job is red today**: `backend`'s test sources do not compile (68 errors in six files under
+`backend/src/test/java/com/bcosmos/backend/ai/`, which still assume the model default flag Phase 11 removed), so
+`./mvnw verify` stops at `test-compile` and no backend test runs. The frontend (119 tests) and ai-lab (28 tests) jobs
+pass. The job turns green by itself once `cd backend && ./mvnw test-compile` succeeds again; no CI change is needed.
+
 ## Verify the whole project, step by step
 
 Every suite in dependency order, with the result each one produces today. Docker Desktop has to be running for the
