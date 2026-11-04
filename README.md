@@ -123,9 +123,10 @@ numbers are recorded in [docs/AGENT_HANDOFF.md](docs/AGENT_HANDOFF.md) and in th
 | `infrastructure` | `docker-compose.yml` (Postgres + pgvector; Kafka under the `pipeline` profile, Spark under `spark`) | 5432 / 9092 / 7077 |
 | `docs` | Specification, phase guide, ADRs | – |
 
-Each folder is its own Git repository with its own remote for now — see
-[ADR 0016](docs/decisions/ADR-0016-per-module-repositories-for-now.md). There is **no root `pom.xml`** and no Maven
-reactor; builds run per module.
+Everything above is one Git repository, [aminekabli55/bcosmos](https://github.com/aminekabli55/bcosmos) on GitHub:
+the nine former per-module repositories were imported under their folders with their history intact
+([ADR 0014](docs/decisions/ADR-0014-one-git-repository.md), implemented 2026-11-04). There is still **no root
+`pom.xml`** and no Maven reactor; builds run per module.
 
 ## Prerequisites
 

@@ -18,9 +18,9 @@ assumption adds or updates one (spec §0 rule 7, phase guide "Rules for every ph
 | [0011](ADR-0011-analyze-commit-blobs.md) | Analyse files by commit blob (JGit), not by checkout | Accepted |
 | [0012](ADR-0012-language-adapter.md) | Language support through `LanguageAdapter` | Accepted |
 | [0013](ADR-0013-hosted-llm-apis.md) | All LLMs through hosted APIs, no local model | Accepted |
-| [0014](ADR-0014-one-git-repository.md) | One Git repository `bcosmos` (root multi-module build) | **Deferred** |
+| [0014](ADR-0014-one-git-repository.md) | One Git repository `bcosmos` (implemented on GitHub; still no root multi-module build) | **Accepted** (2026-11-04) |
 | [0015](ADR-0015-java-21-lts.md) | Java 21 (LTS) for the Java modules | Accepted |
-| [0016](ADR-0016-per-module-repositories-for-now.md) | Keep per-module repositories for now; no root `pom.xml` | Accepted (in force) |
+| [0016](ADR-0016-per-module-repositories-for-now.md) | Keep per-module repositories for now; no root `pom.xml` | **Superseded** by 0014 (the "no root `pom.xml`" part stands) |
 | [0017](ADR-0017-spark-in-docker.md) | Spark runs in Docker (standalone, `spark` profile), not as a local install | Accepted |
 | [0018](ADR-0018-configuration-profiles.md) | Backend configuration: one global file plus dev (default) and prod profiles; tests on the test classpath | Accepted |
 | [0019](ADR-0019-ai-gateway.md) | AI gateway: policy in one place, a provider adapter per shape, opt-in per model, validated JSON, `llm_usage` | Accepted |

@@ -1,6 +1,8 @@
 # ADR 0016 — Keep one Git repository per module for now; no root Maven multi-module build
 
-- **Status:** Accepted (records the layout in force; refines ADR 0014)
+- **Status:** **Superseded** by [ADR 0014](ADR-0014-one-git-repository.md), implemented 2026-11-04 — the
+  per-module repositories are gone (imported into `bcosmos`). The "no root `pom.xml`, no Maven reactor" part still
+  stands: builds remain per module.
 - **Date:** 2026-10-12
 - **Phase:** 0
 - **Supersedes:** the "implemented" reading of ADR 0014; ADR 0014 stays as the intended end state
@@ -28,5 +30,6 @@ the old remotes.
 - `mvn verify` is run per module; there is no single root command yet, and a fresh clone needs the extra
   `analysis-core` install step.
 - CI (when it exists) is per repository; the migration task will consolidate it.
-- `README.md` and `AGENTS.md` live at the workspace root and are **not version-controlled** until the monorepo
-  exists — this is a known gap of this ADR, not an oversight.
+- `README.md` and `AGENTS.md` live at the workspace root and were **not version-controlled** until the monorepo
+  exists — this was a known gap of this ADR, not an oversight. It is closed: both are tracked by `bcosmos` since
+  2026-11-04, along with `sample-data/`.

@@ -282,8 +282,9 @@ next task. `schemaOk` still means "the first answer needed no retry", so a corre
 the verdict although the stored answer conforms — a reporting quirk recorded in ADR 0045.
 
 Phase guide: [docs/BCOSMOS_PHASES.md](docs/BCOSMOS_PHASES.md) (the spec also refers to it as `docs/PHASES.md`).
-Layout in force: per-module Git repositories, no root `pom.xml`
-([ADR 0016](docs/decisions/ADR-0016-per-module-repositories-for-now.md)).
+Layout in force: one Git repository (`bcosmos` on GitHub) holding every module, still no root `pom.xml` and no
+Maven reactor ([ADR 0014](docs/decisions/ADR-0014-one-git-repository.md), implemented 2026-11-04). Builds stay per
+module, so `analysis-core` still needs `./mvnw install` before `backend` or `analysis-worker`.
 
 ## Commands
 
@@ -328,5 +329,8 @@ cd infrastructure && docker compose --profile spark run --rm spark-submit --mast
 
 ## Note on version control
 
-`README.md` and this file sit at the workspace root, which is not a Git repository yet: they are not tracked until
-the monorepo migration of ADR 0014/0016 happens.
+The workspace root **is** the repository root: `README.md`, this file, `sample-data/` and the nine module folders
+all belong to one repository, `bcosmos`, whose remote is GitHub (`origin` → `https://github.com/aminekabli55/bcosmos`).
+The per-module repositories of ADR 0016 were imported under their folders with their history and are no longer used;
+what remains of them locally is archived in the git-ignored `.git-module-archive.tar.gz`. Push with
+`git push origin main` — nothing in this workspace points at Bitbucket any more.
