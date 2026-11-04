@@ -1,0 +1,28 @@
+# Root of the bcosmos monorepo. Each module keeps its own .gitignore for its build output; this file only covers
+# things that live at the workspace root or apply to every module.
+
+# Dependency directories of any module or fixture.
+node_modules/
+
+# Local data: cloned corpus repositories and worker scratch space. Never part of the repository (they are large
+# and third-party).
+/data/
+
+# Agent runtime state (Freebuff project markers).
+/.freebuff/
+
+# Backups taken while the per-module repositories were folded into this one. Safe to delete.
+/.git-module-archive.tar.gz
+
+# Local environment files and key material (never commit credentials, spec section 10).
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+
+# OS / editor noise at the root.
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

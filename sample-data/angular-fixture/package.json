@@ -1,0 +1,7 @@
+{
+  "name": "angular-fixture",
+  "version": "1.0.0",
+  "description": "Deliberately small Angular/TypeScript project for BCosmos Phase 10 verification",
+  "scripts": {},
+  "dependencies": {}
+}
